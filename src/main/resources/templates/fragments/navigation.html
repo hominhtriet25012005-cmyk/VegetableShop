@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="mainMenu(activePage)" class="navbar-nav mx-auto">
+    <a th:href="@{/}" href="/" class="nav-item nav-link"
+       th:classappend="${activePage == 'home'} ? ' active'">Trang chủ</a>
+    <a th:href="@{/shop}" href="/shop" class="nav-item nav-link"
+       th:classappend="${activePage == 'products'} ? ' active'">Sản phẩm</a>
+    <a th:href="@{/news}" href="/news" class="nav-item nav-link"
+       th:classappend="${activePage == 'news'} ? ' active'">Tin tức</a>
+    <div class="nav-item dropdown">
+        <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown"
+           th:classappend="${activePage == 'cart' or activePage == 'checkout' or activePage == 'orders' or activePage == 'testimonial'} ? ' active'">
+            Tiện ích
+        </a>
+        <div class="dropdown-menu m-0 bg-secondary rounded-0">
+            <a th:href="@{/cart}" href="/cart" class="dropdown-item"
+               th:classappend="${activePage == 'cart'} ? ' active'">Giỏ hàng</a>
+            <a th:href="@{/checkout}" href="/checkout" class="dropdown-item"
+               th:classappend="${activePage == 'checkout'} ? ' active'">Thanh toán</a>
+            <a th:href="@{/my-orders}" href="/my-orders" class="dropdown-item"
+               th:classappend="${activePage == 'orders'} ? ' active'">Đơn hàng của tôi</a>
+            <a th:href="@{/testimonial}" href="/testimonial" class="dropdown-item"
+               th:classappend="${activePage == 'testimonial'} ? ' active'">Đánh giá khách hàng</a>
+        </div>
+    </div>
+    <a th:href="@{/contact}" href="/contact" class="nav-item nav-link"
+       th:classappend="${activePage == 'contact'} ? ' active'">Liên hệ</a>
+</div>
+</body>
+</html>

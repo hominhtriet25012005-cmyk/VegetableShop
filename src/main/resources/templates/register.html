@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng ký - Vegetable Shop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&family=Raleway:wght@600;700&display=swap" rel="stylesheet">
+    <link th:href="@{/css/bootstrap.min.css}" href="/css/bootstrap.min.css" rel="stylesheet">
+    <link th:href="@{/css/style.css}" href="/css/style.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<main class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-9 col-lg-7">
+            <div class="bg-white rounded shadow-sm p-4 p-md-5">
+                <a th:href="@{/}" href="/" class="text-decoration-none">
+                    <h2 class="text-primary text-center mb-4">Vegetable Shop</h2>
+                </a>
+                <h4 class="text-center mb-4">Tạo tài khoản khách hàng</h4>
+
+                <div th:if="${param.databaseRequired}" class="alert alert-warning">
+                    Chế độ giao diện không lưu tài khoản. Hãy chạy ứng dụng với profile <strong>mysql</strong>.
+                </div>
+
+                <form th:action="@{/register}" th:object="${registerRequest}" method="post" novalidate>
+                    <div class="mb-3">
+                        <label for="fullName" class="form-label">Họ và tên <span class="text-danger">*</span></label>
+                        <input id="fullName" type="text" th:field="*{fullName}" class="form-control py-3"
+                               th:classappend="${#fields.hasErrors('fullName')} ? ' is-invalid'" maxlength="100">
+                        <div class="invalid-feedback" th:errors="*{fullName}">Lỗi họ tên</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                        <input id="email" type="email" th:field="*{email}" class="form-control py-3"
+                               th:classappend="${#fields.hasErrors('email')} ? ' is-invalid'" maxlength="150">
+                        <div class="invalid-feedback" th:errors="*{email}">Lỗi email</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="password" class="form-label">Mật khẩu <span class="text-danger">*</span></label>
+                            <input id="password" type="password" th:field="*{password}" class="form-control py-3"
+                                   th:classappend="${#fields.hasErrors('password')} ? ' is-invalid'"
+                                   autocomplete="new-password">
+                            <div class="invalid-feedback" th:errors="*{password}">Lỗi mật khẩu</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="confirmPassword" class="form-label">Nhập lại mật khẩu <span class="text-danger">*</span></label>
+                            <input id="confirmPassword" type="password" th:field="*{confirmPassword}"
+                                   class="form-control py-3"
+                                   th:classappend="${#fields.hasErrors('confirmPassword') or #fields.hasErrors('passwordConfirmed')} ? ' is-invalid'"
+                                   autocomplete="new-password">
+                            <div class="invalid-feedback" th:if="${#fields.hasErrors('confirmPassword')}" th:errors="*{confirmPassword}">Lỗi xác nhận</div>
+                            <div class="invalid-feedback d-block" th:if="${#fields.hasErrors('passwordConfirmed')}" th:errors="*{passwordConfirmed}">Mật khẩu không khớp</div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Số điện thoại</label>
+                        <input id="phone" type="tel" th:field="*{phone}" class="form-control py-3"
+                               th:classappend="${#fields.hasErrors('phone')} ? ' is-invalid'" maxlength="20">
+                        <div class="invalid-feedback" th:errors="*{phone}">Lỗi số điện thoại</div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="address" class="form-label">Địa chỉ</label>
+                        <textarea id="address" th:field="*{address}" class="form-control" rows="3"
+                                  th:classappend="${#fields.hasErrors('address')} ? ' is-invalid'" maxlength="255"></textarea>
+                        <div class="invalid-feedback" th:errors="*{address}">Lỗi địa chỉ</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary text-white w-100 py-3">Đăng ký</button>
+                </form>
+
+                <p class="text-center mt-4 mb-0">
+                    Đã có tài khoản? <a th:href="@{/login}" href="/login">Đăng nhập</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</main>
+</body>
+</html>

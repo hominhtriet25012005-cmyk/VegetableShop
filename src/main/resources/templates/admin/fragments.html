@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<aside th:fragment="sidebar(activePage)" class="admin-sidebar" id="adminSidebar" aria-label="Điều hướng quản trị">
+    <div class="sidebar-header">
+        <a class="brand-mark" th:href="@{/admin}">
+            <span class="brand-icon"><i class="bi bi-basket2-fill"></i></span>
+            <span class="brand-copy"><span class="brand-title">Vegetable Shop</span><span class="brand-subtitle">Admin</span></span>
+        </a>
+    </div>
+    <nav class="sidebar-nav">
+        <a class="nav-link" th:classappend="${activePage == 'dashboard'} ? ' active'" th:href="@{/admin}"><span class="nav-icon"><i class="bi bi-speedometer2"></i></span><span class="nav-text">Tổng quan</span></a>
+        <a class="nav-link" th:classappend="${activePage == 'products'} ? ' active'" th:href="@{/admin/products}"><span class="nav-icon"><i class="bi bi-box-seam"></i></span><span class="nav-text">Sản phẩm</span></a>
+        <a class="nav-link" th:classappend="${activePage == 'categories'} ? ' active'" th:href="@{/admin/categories}"><span class="nav-icon"><i class="bi bi-tags"></i></span><span class="nav-text">Danh mục</span></a>
+        <a class="nav-link" th:classappend="${activePage == 'orders'} ? ' active'" th:href="@{/admin/orders}"><span class="nav-icon"><i class="bi bi-receipt"></i></span><span class="nav-text">Đơn hàng</span></a>
+        <a class="nav-link" th:classappend="${activePage == 'users'} ? ' active'" th:href="@{/admin/users}"><span class="nav-icon"><i class="bi bi-people"></i></span><span class="nav-text">Người dùng</span></a>
+        <a class="nav-link" th:href="@{/}"><span class="nav-icon"><i class="bi bi-globe2"></i></span><span class="nav-text">Website</span></a>
+    </nav>
+    <div class="sidebar-user"><strong sec:authentication="name">admin@example.com</strong><small>ROLE_ADMIN</small></div>
+    <div class="sidebar-footer"><span class="status-dot"></span><span class="sidebar-footer-text">Hệ thống đang hoạt động</span></div>
+</aside>
+
+<nav th:fragment="topbar" class="navbar admin-navbar navbar-expand bg-white">
+    <div class="container-fluid px-3 px-lg-4">
+        <button class="sidebar-toggle" type="button" data-sidebar-toggle aria-controls="adminSidebar" aria-label="Mở điều hướng"><span></span><span></span><span></span></button>
+        <div class="ms-3"><strong>Quản trị Vegetable Shop</strong></div>
+        <div class="navbar-actions ms-auto">
+            <a class="btn btn-outline-primary btn-sm" th:href="@{/}" aria-label="Quay về website">
+                <i class="bi bi-globe2"></i> <span class="d-none d-md-inline">Website</span>
+            </a>
+            <button class="icon-button theme-toggle" type="button" data-theme-toggle aria-label="Đổi giao diện"><i class="bi bi-moon-stars" data-theme-icon></i></button>
+            <span class="profile-name d-none d-sm-inline" sec:authentication="name">admin@example.com</span>
+            <form th:action="@{/logout}" method="post" class="m-0"><button class="btn btn-outline-danger btn-sm" type="submit"><i class="bi bi-box-arrow-right"></i> Đăng xuất</button></form>
+        </div>
+    </div>
+</nav>
+
+<footer th:fragment="footer" class="admin-footer"><div class="container-fluid px-3 px-lg-4"><span>Vegetable Shop Admin</span><span>Hệ thống quản trị cửa hàng</span></div></footer>
+
+<div th:fragment="messages" th:remove="tag">
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show"><span th:text="${successMessage}">Thành công</span><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show"><span th:text="${errorMessage}">Có lỗi</span><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+</div>
+</body></html>

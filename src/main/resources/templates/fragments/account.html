@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<div th:fragment="accountMenu" class="dropdown my-auto">
+    <a sec:authorize="isAnonymous()" th:href="@{/login}" href="/login"
+       class="my-auto" title="Đăng nhập">
+        <i class="fas fa-user fa-2x"></i>
+    </a>
+
+    <div sec:authorize="isAuthenticated()" class="dropdown">
+        <a href="#" class="dropdown-toggle my-auto" data-bs-toggle="dropdown"
+           aria-expanded="false" title="Tài khoản">
+            <i class="fas fa-user-check fa-2x"></i>
+        </a>
+        <div class="dropdown-menu dropdown-menu-end bg-light border-0 rounded-0 shadow p-2">
+            <span class="dropdown-item-text small text-muted" sec:authentication="name">email@example.com</span>
+            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin}" href="/admin"
+               class="dropdown-item">Trang quản trị</a>
+            <a th:href="@{/my-orders}" href="/my-orders" class="dropdown-item">Đơn hàng của tôi</a>
+            <form th:action="@{/logout}" action="/logout" method="post" class="m-0">
+                <button type="submit" class="dropdown-item text-danger">Đăng xuất</button>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>

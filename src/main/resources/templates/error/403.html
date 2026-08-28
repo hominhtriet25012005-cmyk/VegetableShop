@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Không có quyền truy cập - Vegetable Shop</title>
+    <link th:href="@{/css/bootstrap.min.css}" href="/css/bootstrap.min.css" rel="stylesheet">
+    <link th:href="@{/css/style.css}" href="/css/style.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<main class="container py-5">
+    <div class="row justify-content-center py-5">
+        <div class="col-md-7 text-center bg-white rounded shadow-sm p-5">
+            <div class="display-1 text-secondary fw-bold">403</div>
+            <h1 class="h3 mb-3">Bạn không có quyền truy cập</h1>
+            <p>Tài khoản hiện tại không có vai trò phù hợp để mở trang này.</p>
+            <a th:href="@{/}" href="/" class="btn btn-primary text-white px-4">Về trang chủ</a>
+        </div>
+    </div>
+</main>
+</body>
+</html>
