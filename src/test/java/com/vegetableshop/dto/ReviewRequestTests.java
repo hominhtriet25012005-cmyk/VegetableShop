@@ -15,6 +15,7 @@ class ReviewRequestTests {
     void ratingMustBeBetweenOneAndFive() {
         ReviewRequest request = new ReviewRequest();
         request.setRating(6);
+        request.setOrderDetailId(1L);
 
         assertEquals(1, validator.validate(request).size());
     }
@@ -23,6 +24,7 @@ class ReviewRequestTests {
     void validRatingAndCommentPassValidation() {
         ReviewRequest request = new ReviewRequest();
         request.setRating(5);
+        request.setOrderDetailId(1L);
         request.setComment("Sản phẩm tươi và giao đúng hẹn");
 
         assertTrue(validator.validate(request).isEmpty());

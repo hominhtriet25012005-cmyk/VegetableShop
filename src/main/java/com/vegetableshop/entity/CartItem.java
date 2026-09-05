@@ -46,7 +46,7 @@ public class CartItem extends BaseEntity {
         if (product == null || product.getPrice() == null || quantity == null) {
             return BigDecimal.ZERO;
         }
-        return product.getPrice().multiply(BigDecimal.valueOf(quantity));
+        return product.getEffectivePrice().multiply(BigDecimal.valueOf(quantity));
     }
 
     public Long getId() {

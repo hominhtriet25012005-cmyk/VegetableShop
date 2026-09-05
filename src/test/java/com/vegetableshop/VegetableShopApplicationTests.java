@@ -19,8 +19,8 @@ class VegetableShopApplicationTests {
 
 	@Test
 	void homeControllerReturnsIndexTemplate() {
-		HomeController controller = new HomeController(Optional.empty(), Optional.empty());
-		assertEquals("index", controller.home(new ConcurrentModel()));
+		HomeController controller = new HomeController(Optional.empty(), Optional.empty(), Optional.empty());
+		assertEquals("index", controller.home(null, new ConcurrentModel()));
 	}
 
 	@Test
@@ -33,9 +33,10 @@ class VegetableShopApplicationTests {
 		when(categoryService.findAllActiveCategories()).thenReturn(List.of(category));
 
 		ConcurrentModel model = new ConcurrentModel();
-		HomeController controller = new HomeController(Optional.of(productService), Optional.of(categoryService));
+		HomeController controller = new HomeController(
+			Optional.of(productService), Optional.of(categoryService), Optional.empty());
 
-		assertEquals("index", controller.home(model));
+		assertEquals("index", controller.home(null, model));
 		assertEquals(List.of(product), model.getAttribute("homeProducts"));
 		assertEquals(1, model.getAttribute("homeFeaturedCount"));
 		assertEquals(List.of(category), model.getAttribute("categories"));

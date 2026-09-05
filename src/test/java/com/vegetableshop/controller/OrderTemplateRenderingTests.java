@@ -1,6 +1,7 @@
 package com.vegetableshop.controller;
 
 import com.vegetableshop.dto.CheckoutRequest;
+import com.vegetableshop.dto.CheckoutPricingView;
 import com.vegetableshop.entity.CartItem;
 import com.vegetableshop.entity.Order;
 import com.vegetableshop.entity.OrderDetail;
@@ -41,7 +42,8 @@ class OrderTemplateRenderingTests {
         mockMvc.perform(get("/__test/checkout-preview"))
             .andExpect(status().isOk())
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Cà rốt Đà Lạt")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("50.000 ₫")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("45.000 ₫")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Đã áp dụng TEST10")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"_csrf\"")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Thanh toán khi nhận hàng")));
     }
@@ -70,7 +72,16 @@ class OrderTemplateRenderingTests {
             item.setQuantity(2);
             model.addAttribute("checkoutRequest", new CheckoutRequest());
             model.addAttribute("cartItems", List.of(item));
-            model.addAttribute("cartTotal", new BigDecimal("50000"));
+            model.addAttribute("pricing", new CheckoutPricingView(
+                List.of(new CheckoutPricingView.Line(
+                    product, 2, new BigDecimal("25000"), new BigDecimal("22500"),
+                    new BigDecimal("5000"), BigDecimal.ZERO, new BigDecimal("45000"),
+                    "Khuyến mãi 10%", false
+                )),
+                new BigDecimal("50000"), new BigDecimal("5000"), BigDecimal.ZERO,
+                new BigDecimal("45000"), null, "Đã áp dụng TEST10"
+            ));
+            model.addAttribute("cartTotal", new BigDecimal("45000"));
             model.addAttribute("cartItemCount", 2);
             return "checkout";
         }

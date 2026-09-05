@@ -13,6 +13,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmailIgnoreCase(String email);
 
+    Optional<User> findByOauthSubject(String oauthSubject);
+
     boolean existsByEmailIgnoreCase(String email);
 
     @Query("""

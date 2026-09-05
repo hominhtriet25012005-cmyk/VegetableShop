@@ -49,6 +49,7 @@ class HomeTemplateRenderingTests {
             .andExpect(content().string(containsString("href=\"/product/11\"")))
             .andExpect(content().string(containsString("action=\"/cart/items\"")))
             .andExpect(content().string(containsString("src=\"/js/home-products.js\"")))
+            .andExpect(content().string(containsString("src=\"/js/chatbot.js\"")))
             .andExpect(content().string(containsString("data-home-product-card")))
             .andExpect(content().string(containsString("href=\"/news\"")))
             .andExpect(content().string(containsString(">Tin tức</a>")))
@@ -74,7 +75,7 @@ class HomeTemplateRenderingTests {
         List<String> templates = List.of(
             "index.html", "shop.html", "shop-detail.html", "news.html", "contact.html",
             "testimonial.html", "cart.html", "checkout.html", "my-orders.html",
-            "order-detail.html", "error/404.html"
+            "order-detail.html", "wishlist.html", "error/404.html"
         );
 
         for (String template : templates) {
@@ -101,9 +102,23 @@ class HomeTemplateRenderingTests {
             product.setPrice(new BigDecimal("32000"));
             product.setQuantity(25);
             product.setCategory(category);
+            product.setImage("/img/vegetable-item-1.jpg");
 
-            model.addAttribute("homeProducts", List.of(product));
-            model.addAttribute("homeFeaturedCount", 1);
+            java.util.ArrayList<Product> products = new java.util.ArrayList<>(List.of(product));
+            for (int index = 0; index < 3; index++) {
+                Product other = new Product();
+                other.setId(12L + index);
+                other.setName(List.of("Nấm hương tươi đóng gói tuyển chọn cho bữa ăn gia đình", "Táo đỏ", "Rau cải xanh").get(index));
+                other.setCategory(category);
+                other.setPrice(new BigDecimal("45000"));
+                other.setQuantity(index == 1 ? 0 : 15);
+                other.setUnit(com.vegetableshop.entity.ProductUnit.PACKAGE);
+                other.setImage("/img/vegetable-item-1.jpg");
+                products.add(other);
+            }
+            model.addAttribute("homeProducts", products);
+            model.addAttribute("homeFeaturedCount", products.size());
+            model.addAttribute("wishlistProductIds", java.util.Set.of(11L));
             model.addAttribute("categories", List.of(category));
             return "index";
         }

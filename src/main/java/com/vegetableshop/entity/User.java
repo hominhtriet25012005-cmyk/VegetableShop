@@ -35,10 +35,17 @@ public class User extends BaseEntity {
     @Column(nullable = false, length = 150, unique = true)
     private String email;
 
-    @NotBlank(message = "Mật khẩu không được để trống")
     @Size(max = 255)
-    @Column(nullable = false, length = 255)
+    @Column(length = 255)
     private String password;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_provider", nullable = false, length = 20)
+    private AuthProvider authProvider = AuthProvider.LOCAL;
+
+    @Size(max = 255)
+    @Column(name = "oauth_subject", length = 255, unique = true)
+    private String oauthSubject;
 
     @Size(max = 20, message = "Số điện thoại không được vượt quá 20 ký tự")
     @Column(length = 20)
@@ -54,6 +61,9 @@ public class User extends BaseEntity {
 
     @Column(nullable = false)
     private boolean status = true;
+
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = true;
 
     public Long getId() {
         return id;
@@ -87,6 +97,22 @@ public class User extends BaseEntity {
         this.password = password;
     }
 
+    public AuthProvider getAuthProvider() {
+        return authProvider;
+    }
+
+    public void setAuthProvider(AuthProvider authProvider) {
+        this.authProvider = authProvider;
+    }
+
+    public String getOauthSubject() {
+        return oauthSubject;
+    }
+
+    public void setOauthSubject(String oauthSubject) {
+        this.oauthSubject = oauthSubject;
+    }
+
     public String getPhone() {
         return phone;
     }
@@ -117,5 +143,13 @@ public class User extends BaseEntity {
 
     public void setStatus(boolean status) {
         this.status = status;
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(boolean emailVerified) {
+        this.emailVerified = emailVerified;
     }
 }

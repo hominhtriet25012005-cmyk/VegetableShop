@@ -14,11 +14,28 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.containsString;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("template")
 class SecurityIntegrationTests {
+
+    @Test @WithMockUser(roles = "USER")
+    void customerCannotReadOrModerateAdminReviews() throws Exception {
+        mockMvc.perform(get("/admin/reviews")).andExpect(status().isForbidden());
+        mockMvc.perform(post("/admin/reviews/1/moderate").with(csrf()).param("status", "APPROVED"))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test @WithMockUser(roles = "ADMIN")
+    void moderationAndReviewSubmissionRequireCsrf() throws Exception {
+        mockMvc.perform(post("/admin/reviews/1/moderate").param("status", "DELETED"))
+            .andExpect(status().isForbidden());
+        mockMvc.perform(post("/product/1/reviews").param("rating", "5").param("orderDetailId", "1"))
+            .andExpect(status().isForbidden());
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -27,15 +44,81 @@ class SecurityIntegrationTests {
     void loginAndRegisterPagesArePublic() throws Exception {
         mockMvc.perform(get("/login"))
             .andExpect(status().isOk())
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("Đăng nhập")));
+            .andExpect(content().string(containsString("Đăng nhập")))
+            .andExpect(content().string(containsString(">Trang chủ</a>")))
+            .andExpect(content().string(containsString(">Tin tức</a>")))
+            .andExpect(content().string(containsString("Về Vegetable Shop")))
+            .andExpect(content().string(not(containsString("Quay lại cửa hàng"))))
+            .andExpect(content().string(not(containsString("Đăng nhập với Google"))))
+            .andExpect(content().string(not(containsString("Facebook"))));
 
         mockMvc.perform(get("/register"))
             .andExpect(status().isOk())
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("Tạo tài khoản khách hàng")));
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Tạo tài khoản khách hàng")))
+            .andExpect(content().string(containsString(">Trang chủ</a>")))
+            .andExpect(content().string(containsString(">Tin tức</a>")))
+            .andExpect(content().string(containsString("Về Vegetable Shop")))
+            .andExpect(content().string(containsString("name=\"captchaAnswer\"")))
+            .andExpect(content().string(containsString("3 + 4 = ?")));
 
         mockMvc.perform(get("/news"))
             .andExpect(status().isOk())
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Tin tức")));
+
+        mockMvc.perform(get("/api/chatbot/messages").param("message", "Tìm sản phẩm"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("chế độ xem giao diện")));
+    }
+
+    @Test
+    void passwordRecoveryPagesArePublicButAccountPageIsProtected() throws Exception {
+        mockMvc.perform(get("/forgot-password"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Quên mật khẩu")))
+            .andExpect(content().string(containsString("name=\"captchaAnswer\"")))
+            .andExpect(content().string(containsString("5 + 2 = ?")));
+
+        mockMvc.perform(get("/contact"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Kết nối với chúng tôi")))
+            .andExpect(content().string(containsString("Ho+Chi+Minh+City")))
+            .andExpect(content().string(not(containsString("New York"))));
+
+        mockMvc.perform(get("/reset-password"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Liên kết không hợp lệ")));
+
+        mockMvc.perform(get("/account"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/login"));
+    }
+
+    @Test
+    void forgotPasswordPostRequiresCsrfToken() throws Exception {
+        mockMvc.perform(post("/forgot-password").param("email", "user@example.com"))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/forgot-password").with(csrf()).param("email", "user@example.com"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/forgot-password?databaseRequired"));
+    }
+
+    @Test
+    void accountActivationPagesArePublicAndResendRequiresCsrf() throws Exception {
+        mockMvc.perform(get("/activate-account"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Kích hoạt tài khoản")));
+
+        mockMvc.perform(get("/resend-activation"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Gửi lại email kích hoạt")));
+
+        mockMvc.perform(post("/resend-activation").param("email", "user@example.com"))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/resend-activation").with(csrf()).param("email", "user@example.com"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/resend-activation?databaseRequired"));
     }
 
     @Test
@@ -79,6 +162,36 @@ class SecurityIntegrationTests {
                 .param("productId", "1").param("quantity", "1"))
             .andExpect(status().is3xxRedirection())
             .andExpect(redirectedUrl("/login"));
+    }
+
+    @Test
+    void anonymousCustomerCannotOpenOrMutateWishlist() throws Exception {
+        mockMvc.perform(get("/wishlist"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/login"));
+
+        mockMvc.perform(post("/api/wishlist/items").with(csrf()).param("productId", "1"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/login"));
+    }
+
+    @Test
+    void inventoryAdministrationRequiresAdminRole() throws Exception {
+        mockMvc.perform(get("/admin/inventory"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/login"));
+
+        mockMvc.perform(get("/admin/inventory").with(
+                org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                    .user("user@example.com").roles("USER")))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "user@example.com", roles = "USER")
+    void wishlistMutationRequiresCsrfToken() throws Exception {
+        mockMvc.perform(post("/api/wishlist/items").param("productId", "1"))
+            .andExpect(status().isForbidden());
     }
 
     @Test

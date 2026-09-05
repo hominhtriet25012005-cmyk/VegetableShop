@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body style="margin:0;background:#f4f6f8;font-family:Arial,sans-serif;color:#31404b">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 12px">
+    <tr><td align="center">
+        <table role="presentation" width="680" cellspacing="0" cellpadding="0"
+               style="max-width:680px;background:#fff;border-radius:12px;overflow:hidden">
+            <tr><td style="background:#74c900;color:#fff;padding:24px 32px;font-size:26px;font-weight:bold">Vegetable Shop</td></tr>
+            <tr><td style="padding:32px">
+                <h2 style="margin-top:0">Đặt hàng thành công</h2>
+                <p>Xin chào <strong th:text="${order.fullName}">Khách hàng</strong>,</p>
+                <p>Đơn <strong th:text="${order.orderCode}">VS-001</strong> đã được tiếp nhận.</p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="8" style="border-collapse:collapse;margin:20px 0">
+                    <thead><tr style="background:#f0f3f5"><th align="left">Sản phẩm</th><th>Số lượng</th><th align="right">Thành tiền</th></tr></thead>
+                    <tbody>
+                    <tr th:each="item : ${order.items}" style="border-bottom:1px solid #e5e7eb">
+                        <td th:text="${item.productName}">Sản phẩm</td>
+                        <td align="center" th:text="${item.quantity}">1</td>
+                        <td align="right" th:text="${#numbers.formatDecimal(item.subtotal, 0, 'POINT', 0, 'COMMA')} + ' đ'">0 đ</td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p style="font-size:18px"><strong>Tổng cộng: </strong><strong style="color:#5a9e00" th:text="${#numbers.formatDecimal(order.totalAmount, 0, 'POINT', 0, 'COMMA')} + ' đ'">0 đ</strong></p>
+                <p><strong>Người nhận:</strong> <span th:text="${order.receiverName}">Tên</span> – <span th:text="${order.receiverPhone}">Điện thoại</span></p>
+                <p><strong>Địa chỉ:</strong> <span th:text="${order.shippingAddress}">Địa chỉ</span></p>
+                <p style="margin:28px 0"><a th:href="${orderUrl}" href="#" style="background:#74c900;color:#fff;text-decoration:none;padding:14px 24px;border-radius:8px;display:inline-block">Xem đơn hàng</a></p>
+            </td></tr>
+        </table>
+    </td></tr>
+</table>
+</body>
+</html>

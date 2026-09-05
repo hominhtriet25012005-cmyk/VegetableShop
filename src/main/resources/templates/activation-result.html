@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kích hoạt tài khoản - Vegetable Shop</title>
+    <link th:href="@{/css/bootstrap.min.css}" href="/css/bootstrap.min.css" rel="stylesheet">
+    <link th:href="@{/css/style.css}" href="/css/style.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<main class="container py-5">
+    <div class="row justify-content-center py-5">
+        <div class="col-md-7 col-lg-5">
+            <div class="bg-white rounded shadow-sm p-4 p-md-5 text-center">
+                <a th:href="@{/}" href="/" class="text-decoration-none">
+                    <h2 class="text-primary mb-4">Vegetable Shop</h2>
+                </a>
+                <div th:if="${activationSuccess}" class="alert alert-success">
+                    Tài khoản đã được kích hoạt thành công.
+                </div>
+                <div th:unless="${activationSuccess}" class="alert alert-danger"
+                     th:text="${activationError}">
+                    Liên kết kích hoạt không hợp lệ hoặc đã hết hạn.
+                </div>
+                <a th:if="${activationSuccess}" th:href="@{/login(activated='')}" href="/login?activated"
+                   class="btn btn-primary text-white w-100 py-3">Đăng nhập</a>
+                <a th:unless="${activationSuccess}" th:href="@{/resend-activation}" href="/resend-activation"
+                   class="btn btn-outline-primary w-100 py-3">Gửi lại email kích hoạt</a>
+            </div>
+        </div>
+    </div>
+</main>
+</body>
+</html>

@@ -9,7 +9,7 @@
 </head>
 <body>
 <div class="container-fluid fixed-top">
-    <div class="container topbar bg-primary d-none d-lg-block"><div class="d-flex justify-content-between text-white px-2 py-2"><small><i class="fas fa-leaf me-2 text-secondary"></i>Thực phẩm sạch mỗi ngày</small><small>Giai đoạn 7 - Đặt hàng COD</small></div></div>
+    <div class="container topbar bg-primary d-none d-lg-block"><div class="d-flex justify-content-between text-white px-2 py-2"><small><i class="fas fa-leaf me-2 text-secondary"></i>Thực phẩm sạch mỗi ngày</small><small>Thanh toán rõ ràng, mua sắm an tâm</small></div></div>
     <div class="container px-0"><nav class="navbar navbar-light bg-white navbar-expand-xl">
         <a th:href="@{/}" class="navbar-brand"><h1 class="text-primary display-6">Vegetable Shop</h1></a>
         <button class="navbar-toggler py-2 px-3" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"><span class="fa fa-bars text-primary"></span></button>
@@ -20,6 +20,7 @@
 
 <main class="container-fluid py-5"><div class="container py-4">
     <form th:action="@{/checkout}" th:object="${checkoutRequest}" method="post">
+        <input type="hidden" th:field="*{checkoutToken}">
         <div th:if="${#fields.hasGlobalErrors()}" class="alert alert-danger"><div th:each="error : ${#fields.globalErrors()}" th:text="${error}">Không thể đặt hàng</div></div>
         <div class="row g-5">
             <section class="col-lg-7">
@@ -29,13 +30,20 @@
                 <div class="mb-3"><label for="shippingAddress" class="form-label">Địa chỉ giao hàng <span class="text-danger">*</span></label><input id="shippingAddress" type="text" th:field="*{shippingAddress}" class="form-control" th:classappend="${#fields.hasErrors('shippingAddress')} ? 'is-invalid'" maxlength="255"><div class="invalid-feedback" th:errors="*{shippingAddress}">Lỗi địa chỉ</div></div>
                 <div class="mb-4"><label for="note" class="form-label">Ghi chú</label><textarea id="note" th:field="*{note}" rows="4" maxlength="500" class="form-control" th:classappend="${#fields.hasErrors('note')} ? 'is-invalid'"></textarea><div class="invalid-feedback" th:errors="*{note}">Lỗi ghi chú</div></div>
                 <h2 class="h4 mb-3">Phương thức thanh toán</h2>
+                <div class="border rounded p-3 mb-3" th:if="${bankTransferEnabled == true}">
+                    <div class="form-check"><input type="radio" class="form-check-input" th:field="*{paymentMethod}" value="BANK_TRANSFER" id="paymentBank"><label class="form-check-label fw-semibold" for="paymentBank">Chuyển khoản ngân hàng qua QR</label></div>
+                    <small>QR điền sẵn số tiền và nội dung được hiển thị sau khi đặt hàng. Cửa hàng kiểm tra tiền thực nhận trước khi giao.</small>
+                </div>
                 <div class="border rounded p-3 bg-light"><div class="form-check"><input class="form-check-input" type="radio" th:field="*{paymentMethod}" value="COD" id="paymentCod"><label class="form-check-label fw-semibold" for="paymentCod">Thanh toán khi nhận hàng (COD)</label></div><small class="text-muted">Bạn thanh toán trực tiếp cho nhân viên giao hàng.</small><div class="text-danger small" th:errors="*{paymentMethod}">Lỗi phương thức</div></div>
             </section>
             <aside class="col-lg-5"><div class="bg-light rounded p-4">
                 <h2 class="h3 mb-4">Đơn hàng của bạn</h2>
                 <div th:if="${#lists.isEmpty(cartItems)}" class="alert alert-warning">Giỏ hàng đang trống.</div>
-                <div th:each="item : ${cartItems}" class="d-flex justify-content-between border-bottom py-3 gap-3"><div><strong th:text="${item.product.name}">Tên sản phẩm</strong><small class="d-block text-muted" th:text="${'Số lượng: ' + item.quantity}">Số lượng</small></div><span th:text="${#numbers.formatDecimal(item.subtotal, 0, 'POINT', 0, 'COMMA') + ' ₫'}">0 ₫</span></div>
-                <div class="d-flex justify-content-between py-4 h5"><span>Tổng cộng</span><strong class="text-primary" th:text="${#numbers.formatDecimal(cartTotal, 0, 'POINT', 0, 'COMMA') + ' ₫'}">0 ₫</strong></div>
+                <th:block th:if="${pricing != null}"><div th:each="line : ${pricing.lines}" class="d-flex justify-content-between border-bottom py-3 gap-3"><div><strong th:text="${line.product.name}">Tên sản phẩm</strong><small class="d-block text-muted" th:text="${'Số lượng: ' + line.quantity}">Số lượng</small><small th:if="${line.promotionName != null}" class="d-block text-danger" th:text="${line.promotionName}">Khuyến mãi</small></div><div class="text-end"><span th:if="${line.promotionDiscountAmount.signum()>0}" class="d-block small text-muted text-decoration-line-through" th:text="${#numbers.formatDecimal(line.originalTotalAmount,0,'POINT',0,'COMMA')+' ₫'}"></span><strong th:text="${#numbers.formatDecimal(line.totalAmount,0,'POINT',0,'COMMA')+' ₫'}">0 ₫</strong></div></div></th:block>
+                <div th:if="${pricing == null}" th:each="item:${cartItems}" class="d-flex justify-content-between border-bottom py-3"><strong th:text="${item.product.name}"></strong><span th:text="${#numbers.formatDecimal(item.subtotal,0,'POINT',0,'COMMA')+' ₫'}"></span></div>
+                <div class="mt-4"><label class="form-label fw-semibold" for="voucherCode">Mã voucher</label><div class="input-group"><input id="voucherCode" class="form-control text-uppercase" th:field="*{voucherCode}" placeholder="Nhập mã voucher"><button class="btn btn-outline-primary" type="submit" formmethod="get">Áp dụng</button></div><div class="small text-success mt-1" th:if="${pricing != null and pricing.voucherMessage != null}" th:text="${pricing.voucherMessage}"></div><div class="small text-danger mt-1" th:if="${voucherError != null}" th:text="${voucherError}"></div><div class="small text-danger" th:errors="*{voucherCode}"></div></div>
+                <div th:if="${pricing != null}" class="pt-4"><div class="d-flex justify-content-between mb-2"><span>Tạm tính</span><span th:text="${#numbers.formatDecimal(pricing.subtotalAmount,0,'POINT',0,'COMMA')+' ₫'}"></span></div><div class="d-flex justify-content-between mb-2 text-danger" th:if="${pricing.promotionDiscountAmount.signum()>0}"><span>Khuyến mãi</span><span th:text="${'-'+#numbers.formatDecimal(pricing.promotionDiscountAmount,0,'POINT',0,'COMMA')+' ₫'}"></span></div><div class="d-flex justify-content-between mb-2 text-success" th:if="${pricing.voucherDiscountAmount.signum()>0}"><span>Voucher</span><span th:text="${'-'+#numbers.formatDecimal(pricing.voucherDiscountAmount,0,'POINT',0,'COMMA')+' ₫'}"></span></div></div>
+                <div class="d-flex justify-content-between py-3 h5 border-top"><span>Tổng cộng</span><strong class="text-primary" th:text="${#numbers.formatDecimal(cartTotal, 0, 'POINT', 0, 'COMMA') + ' ₫'}">0 ₫</strong></div>
                 <p class="small text-muted">Giá và tồn kho sẽ được kiểm tra lại tại máy chủ khi đặt hàng.</p>
                 <button type="submit" class="btn border-secondary text-primary rounded-pill px-4 py-3 w-100" th:disabled="${#lists.isEmpty(cartItems)}">Xác nhận đặt hàng</button>
                 <a th:href="@{/cart}" class="btn btn-link w-100 mt-2">Quay lại giỏ hàng</a>
@@ -43,6 +51,6 @@
         </div>
     </form>
 </div></main>
-<footer class="container-fluid bg-dark text-white-50 py-4 mt-5"><div class="container d-flex justify-content-between"><span>© Vegetable Shop</span><span>Thanh toán COD an toàn</span></div></footer>
+<footer class="container-fluid bg-dark text-white-50 py-4 mt-5"><div class="container d-flex justify-content-between"><span>© Vegetable Shop</span><span>COD hoặc chuyển khoản ngân hàng qua QR</span></div></footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
 </body></html>

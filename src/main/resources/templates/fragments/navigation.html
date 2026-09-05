@@ -14,6 +14,8 @@
             Tiện ích
         </a>
         <div class="dropdown-menu m-0 bg-secondary rounded-0">
+            <a th:href="@{/wishlist}" href="/wishlist" class="dropdown-item"
+               th:classappend="${activePage == 'wishlist'} ? ' active'">Sản phẩm yêu thích</a>
             <a th:href="@{/cart}" href="/cart" class="dropdown-item"
                th:classappend="${activePage == 'cart'} ? ' active'">Giỏ hàng</a>
             <a th:href="@{/checkout}" href="/checkout" class="dropdown-item"

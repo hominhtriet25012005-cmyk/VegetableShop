@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gửi lại email kích hoạt - Vegetable Shop</title>
+    <link th:href="@{/css/bootstrap.min.css}" href="/css/bootstrap.min.css" rel="stylesheet">
+    <link th:href="@{/css/style.css}" href="/css/style.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<main class="container py-5">
+    <div class="row justify-content-center py-5">
+        <div class="col-md-7 col-lg-5">
+            <div class="bg-white rounded shadow-sm p-4 p-md-5">
+                <a th:href="@{/}" href="/" class="text-decoration-none">
+                    <h2 class="text-primary text-center mb-4">Vegetable Shop</h2>
+                </a>
+                <h4 class="text-center mb-3">Gửi lại email kích hoạt</h4>
+                <p class="text-muted text-center mb-4">
+                    Nhập email đã đăng ký. Hệ thống luôn trả cùng một thông báo để bảo vệ thông tin tài khoản.
+                </p>
+                <div th:if="${param.databaseRequired}" class="alert alert-warning">
+                    Chức năng này cần chạy với profile <strong>mysql,mail</strong>.
+                </div>
+                <div th:unless="${mailEnabled}" class="alert alert-warning">
+                    Dịch vụ gửi email hiện chưa được bật.
+                </div>
+                <div th:if="${activationRequested}" class="alert alert-success">
+                    Nếu tài khoản tồn tại và chưa kích hoạt, email mới đã được gửi.
+                </div>
+                <form th:action="@{/resend-activation}" th:object="${activationRequest}" method="post" novalidate>
+                    <div class="mb-4">
+                        <label for="email" class="form-label">Email</label>
+                        <input id="email" type="email" th:field="*{email}" class="form-control py-3"
+                               th:classappend="${#fields.hasErrors('email')} ? ' is-invalid'"
+                               autocomplete="email" maxlength="150" autofocus>
+                        <div class="invalid-feedback" th:errors="*{email}">Lỗi email</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary text-white w-100 py-3"
+                            th:disabled="${!mailEnabled}">Gửi email kích hoạt</button>
+                </form>
+                <p class="text-center mt-4 mb-0">
+                    <a th:href="@{/login}" href="/login">Quay lại đăng nhập</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</main>
+</body>
+</html>

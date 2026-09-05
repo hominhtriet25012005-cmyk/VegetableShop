@@ -56,6 +56,7 @@
                             data-bs-toggle="modal" data-bs-target="#searchModal" aria-label="Tìm kiếm sản phẩm">
                         <i class="fas fa-search text-primary"></i>
                     </button>
+                    <div sec:authorize="isAuthenticated()" th:replace="~{fragments/wishlist-link :: wishlistLink}"></div>
                     <div th:replace="~{fragments/cart-link :: cartLink}"></div>
                     <div th:replace="~{fragments/account :: accountMenu}"></div>
                 </div>
@@ -72,7 +73,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
             <div class="modal-body d-flex align-items-center">
-                <form class="input-group w-75 mx-auto d-flex" th:action="@{/shop}" action="/shop" method="get">
+                <form class="input-group w-75 mx-auto d-flex" th:action="@{/shop}" action="/shop" method="get" data-header-search-form>
                     <input type="search" name="keyword" class="form-control p-3" placeholder="Nhập tên sản phẩm..."
                            aria-label="Tên sản phẩm cần tìm">
                     <button class="input-group-text p-3" type="submit" aria-label="Tìm kiếm"><i class="fa fa-search"></i></button>
@@ -160,7 +161,7 @@
     <div class="container py-5">
         <div class="row g-4 align-items-center mb-4">
             <div class="col-lg-5 text-start">
-                <p class="text-secondary fw-semibold mb-2">Mới cập nhật từ cửa hàng</p>
+                <p class="text-secondary fw-semibold mb-2">Khám phá sản phẩm từ các danh mục</p>
                 <h1>Sản phẩm hữu cơ của chúng tôi</h1>
             </div>
             <div class="col-lg-7">
@@ -186,39 +187,7 @@
                  th:each="product, productStat : ${homeProducts}"
                  th:attr="data-category-id=${product.category.id}"
                  th:classappend="${productStat.index >= 8} ? ' d-none'">
-                <article class="rounded position-relative fruite-item h-100 d-flex flex-column" data-home-product-card>
-                    <a class="fruite-img d-block" th:href="@{/product/{id}(id=${product.id})}">
-                        <img th:src="${product.image ?: '/img/hero-img.jpg'}" th:alt="${product.name}"
-                             src="/img/hero-img.jpg" class="img-fluid w-100 rounded-top">
-                    </a>
-                    <a class="text-white bg-secondary px-3 py-1 rounded position-absolute text-decoration-none"
-                       style="top: 10px; left: 10px;" th:href="@{/shop(categoryId=${product.category.id})}"
-                       th:text="${product.category.name}">Danh mục</a>
-                    <div class="p-4 border border-secondary border-top-0 rounded-bottom flex-grow-1 d-flex flex-column">
-                        <h4><a class="text-dark text-decoration-none" th:href="@{/product/{id}(id=${product.id})}"
-                               th:text="${product.name}">Tên sản phẩm</a></h4>
-                        <p class="flex-grow-1" th:text="${#strings.abbreviate(product.description ?: 'Sản phẩm tươi sạch được tuyển chọn mỗi ngày.', 105)}">Mô tả sản phẩm</p>
-                        <p class="small text-muted mb-2" th:text="${'Còn lại: ' + product.quantity + ' sản phẩm'}">Còn hàng</p>
-                        <p class="text-dark fs-5 fw-bold mb-3"
-                           th:text="${#numbers.formatDecimal(product.price, 0, 'POINT', 0, 'COMMA') + ' ₫'}">0 ₫</p>
-                        <div class="d-flex flex-wrap gap-2">
-                            <a class="btn btn-outline-secondary rounded-pill px-3"
-                               th:href="@{/product/{id}(id=${product.id})}">Xem chi tiết</a>
-                            <form sec:authorize="hasAnyRole('USER','ADMIN')" th:action="@{/cart/items}" method="post" data-cart-add>
-                                <input type="hidden" name="productId" th:value="${product.id}">
-                                <input type="hidden" name="quantity" value="1">
-                                <input type="hidden" name="returnUrl" value="/">
-                                <button type="submit" class="btn border border-secondary rounded-pill px-3 text-primary">
-                                    <i class="fa fa-shopping-bag me-2 text-primary"></i>Thêm vào giỏ
-                                </button>
-                            </form>
-                            <a sec:authorize="isAnonymous()" th:href="@{/login}"
-                               class="btn border border-secondary rounded-pill px-3 text-primary">
-                                <i class="fa fa-sign-in-alt me-2 text-primary"></i>Đăng nhập để mua
-                            </a>
-                        </div>
-                    </div>
-                </article>
+                <article th:replace="~{fragments/product-card :: card(${product}, ${null})}"></article>
             </div>
         </div>
 
@@ -377,5 +346,6 @@
 <script th:src="@{/js/main.js}" src="/js/main.js"></script>
 <script th:src="@{/js/home-products.js}" src="/js/home-products.js"></script>
 <script th:src="@{/js/cart.js}" src="/js/cart.js"></script>
+<script th:src="@{/js/wishlist.js}" src="/js/wishlist.js"></script>
 </body>
 </html>

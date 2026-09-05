@@ -17,12 +17,15 @@
             <span class="dropdown-item-text small text-muted" sec:authentication="name">email@example.com</span>
             <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin}" href="/admin"
                class="dropdown-item">Trang quản trị</a>
+            <a th:href="@{/account}" href="/account" class="dropdown-item">Tài khoản của tôi</a>
+            <a th:href="@{/wishlist}" href="/wishlist" class="dropdown-item">Sản phẩm yêu thích</a>
             <a th:href="@{/my-orders}" href="/my-orders" class="dropdown-item">Đơn hàng của tôi</a>
             <form th:action="@{/logout}" action="/logout" method="post" class="m-0">
                 <button type="submit" class="dropdown-item text-danger">Đăng xuất</button>
             </form>
         </div>
     </div>
+    <script th:src="@{/js/chatbot.js}" src="/js/chatbot.js" defer></script>
 </div>
 </body>
 </html>

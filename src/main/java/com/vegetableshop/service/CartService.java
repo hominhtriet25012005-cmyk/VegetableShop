@@ -25,6 +25,8 @@ public class CartService {
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private PromotionPricingService promotionPricingService;
 
     public CartService(
         CartRepository cartRepository,
@@ -40,8 +42,11 @@ public class CartService {
 
     @Transactional
     public Cart getOrCreateCart(String email) {
-        return cartRepository.findByUserEmailIgnoreCase(email)
+        Cart cart = cartRepository.findByUserEmailIgnoreCase(email)
             .orElseGet(() -> createCart(email));
+        if (promotionPricingService != null)
+            promotionPricingService.decorate(cart.getItems().stream().map(CartItem::getProduct).toList());
+        return cart;
     }
 
     @Transactional
@@ -154,7 +159,16 @@ public class CartService {
         String message
     ) {
         Long totalQuantity = cartItemRepository.sumQuantityByUserEmail(email);
-        BigDecimal cartTotal = cartItemRepository.sumSubtotalByUserEmail(email);
+        // Focused unit tests and older callers construct this service without the
+        // optional promotion component. In that case keep using the aggregate
+        // query; the running MySQL application recalculates from decorated items
+        // so promotion prices are reflected immediately.
+        BigDecimal cartTotal = promotionPricingService == null
+            ? cartItemRepository.sumSubtotalByUserEmail(email)
+            : calculateTotal(getOrCreateCart(email));
+        if (cartTotal == null) {
+            cartTotal = BigDecimal.ZERO;
+        }
         long lineCount = cartItemRepository.countByCartUserEmailIgnoreCase(email);
         return new CartMutationResponse(
             itemId,
@@ -162,7 +176,7 @@ public class CartService {
             stock,
             itemSubtotal,
             totalQuantity == null ? 0 : totalQuantity.intValue(),
-            cartTotal == null ? BigDecimal.ZERO : cartTotal,
+            cartTotal,
             lineCount == 0,
             message
         );

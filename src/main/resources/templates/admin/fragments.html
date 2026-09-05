@@ -10,10 +10,25 @@
     </div>
     <nav class="sidebar-nav">
         <a class="nav-link" th:classappend="${activePage == 'dashboard'} ? ' active'" th:href="@{/admin}"><span class="nav-icon"><i class="bi bi-speedometer2"></i></span><span class="nav-text">Tổng quan</span></a>
+        <div class="sidebar-section-label">Sản phẩm</div>
         <a class="nav-link" th:classappend="${activePage == 'products'} ? ' active'" th:href="@{/admin/products}"><span class="nav-icon"><i class="bi bi-box-seam"></i></span><span class="nav-text">Sản phẩm</span></a>
         <a class="nav-link" th:classappend="${activePage == 'categories'} ? ' active'" th:href="@{/admin/categories}"><span class="nav-icon"><i class="bi bi-tags"></i></span><span class="nav-text">Danh mục</span></a>
+        <a class="nav-link" th:classappend="${activePage == 'brands'} ? ' active'" th:href="@{/admin/brands}"><span class="nav-icon"><i class="bi bi-award"></i></span><span class="nav-text">Thương hiệu</span></a>
+        <div class="sidebar-section-label">Kho &amp; nhập hàng</div>
+        <a class="nav-link" th:classappend="${activePage == 'inventory'} ? ' active'" th:href="@{/admin/inventory}"><span class="nav-icon"><i class="bi bi-boxes"></i></span><span class="nav-text">Tổng quan kho</span></a>
+        <a class="nav-link" th:classappend="${activePage == 'inventoryDocuments'} ? ' active'" th:href="@{/admin/inventory/documents}"><span class="nav-icon"><i class="bi bi-file-earmark-text"></i></span><span class="nav-text">Phiếu kho</span></a>
+        <a class="nav-link" th:classappend="${activePage == 'suppliers'} ? ' active'" th:href="@{/admin/suppliers}"><span class="nav-icon"><i class="bi bi-truck"></i></span><span class="nav-text">Nhà cung cấp</span></a>
+        <a class="nav-link" th:classappend="${activePage == 'inventoryHistory'} ? ' active'" th:href="@{/admin/inventory/history}"><span class="nav-icon"><i class="bi bi-clock-history"></i></span><span class="nav-text">Lịch sử kho</span></a>
+        <div class="sidebar-section-label">Bán hàng</div>
+        <a class="nav-link" th:classappend="${activePage == 'discounts'} ? ' active'" th:href="@{/admin/discounts}"><span class="nav-icon"><i class="bi bi-percent"></i></span><span class="nav-text">Voucher &amp; khuyến mãi</span></a>
+        <a class="nav-link" th:classappend="${activePage == 'reviews'} ? ' active'" th:href="@{/admin/reviews}"><span class="nav-icon"><i class="bi bi-star"></i></span><span class="nav-text">Đánh giá sản phẩm</span></a>
+        <a class="nav-link" th:classappend="${activePage == 'bank-payments'} ? ' active'" th:href="@{/admin/bank-payments}"><span class="nav-icon"><i class="bi bi-qr-code"></i></span><span class="nav-text">Đối soát chuyển khoản QR</span></a>
         <a class="nav-link" th:classappend="${activePage == 'orders'} ? ' active'" th:href="@{/admin/orders}"><span class="nav-icon"><i class="bi bi-receipt"></i></span><span class="nav-text">Đơn hàng</span></a>
         <a class="nav-link" th:classappend="${activePage == 'users'} ? ' active'" th:href="@{/admin/users}"><span class="nav-icon"><i class="bi bi-people"></i></span><span class="nav-text">Người dùng</span></a>
+        <div class="sidebar-section-label">Báo cáo</div>
+        <a class="nav-link" th:classappend="${activePage == 'reports'} ? ' active'" th:href="@{/admin/reports}"><span class="nav-icon"><i class="bi bi-bar-chart-line"></i></span><span class="nav-text">Thống kê</span></a>
+        <div class="sidebar-section-label">Hệ thống</div>
+        <a class="nav-link" th:classappend="${activePage == 'chatbot'} ? ' active'" th:href="@{/admin/chatbot}"><span class="nav-icon"><i class="bi bi-chat-dots"></i></span><span class="nav-text">Chatbot &amp; FAQ</span></a>
         <a class="nav-link" th:href="@{/}"><span class="nav-icon"><i class="bi bi-globe2"></i></span><span class="nav-text">Website</span></a>
     </nav>
     <div class="sidebar-user"><strong sec:authentication="name">admin@example.com</strong><small>ROLE_ADMIN</small></div>
@@ -35,10 +50,13 @@
     </div>
 </nav>
 
-<footer th:fragment="footer" class="admin-footer"><div class="container-fluid px-3 px-lg-4"><span>Vegetable Shop Admin</span><span>Hệ thống quản trị cửa hàng</span></div></footer>
+<footer th:fragment="footer" class="admin-footer">
+    <div class="container-fluid px-3 px-lg-4"><span>Vegetable Shop Admin</span><span>Hệ thống quản trị cửa hàng</span></div>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</footer>
 
 <div th:fragment="messages" th:remove="tag">
-    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show"><span th:text="${successMessage}">Thành công</span><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show"><span th:text="${errorMessage}">Có lỗi</span><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" data-admin-flash="success"><span th:text="${successMessage}">Thành công</span><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" data-admin-flash="error"><span th:text="${errorMessage}">Có lỗi</span><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
 </div>
 </body></html>

@@ -65,7 +65,10 @@
                     <div class="collapse navbar-collapse bg-white" id="navbarCollapse">
                         <div th:replace="~{fragments/navigation :: mainMenu('products')}"></div>
                         <div class="d-flex m-3 me-0">
-                            <button class="btn-search btn border border-secondary btn-md-square rounded-circle bg-white me-4" data-bs-toggle="modal" data-bs-target="#searchModal"><i class="fas fa-search text-primary"></i></button>
+                            <button class="btn-search btn border border-secondary btn-md-square rounded-circle bg-white me-4"
+                                    type="button" data-bs-toggle="modal" data-bs-target="#searchModal"
+                                    aria-label="Tìm kiếm sản phẩm"><i class="fas fa-search text-primary"></i></button>
+                            <div sec:authorize="isAuthenticated()" th:replace="~{fragments/wishlist-link :: wishlistLink}"></div>
                             <div th:replace="~{fragments/cart-link :: cartLink}"></div>
                             <div th:replace="~{fragments/account :: accountMenu}"></div>
                         </div>
@@ -77,18 +80,23 @@
 
 
         <!-- Modal Search Start -->
-        <div class="modal fade" id="searchModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal fade" id="searchModal" tabindex="-1" aria-labelledby="searchModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-fullscreen">
                 <div class="modal-content rounded-0">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="exampleModalLabel">Tìm kiếm sản phẩm</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <h5 class="modal-title" id="searchModalLabel">Tìm kiếm sản phẩm</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
                     </div>
                     <div class="modal-body d-flex align-items-center">
-                        <div class="input-group w-75 mx-auto d-flex">
-                            <input type="search" class="form-control p-3" placeholder="keywords" aria-describedby="search-icon-1">
-                            <span id="search-icon-1" class="input-group-text p-3"><i class="fa fa-search"></i></span>
-                        </div>
+                        <form class="input-group w-75 mx-auto d-flex" th:action="@{/shop}" action="/shop"
+                              method="get" data-header-search-form>
+                            <input type="search" name="keyword" class="form-control p-3"
+                                   th:value="${filter.keyword}" placeholder="Nhập tên sản phẩm..."
+                                   aria-label="Tên sản phẩm cần tìm" autocomplete="off">
+                            <button class="input-group-text p-3" type="submit" aria-label="Tìm kiếm">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -217,8 +225,8 @@
                                             <div>
                                                 <h6 class="mb-2" th:text="${featuredProduct.name}">Tên sản phẩm</h6>
                                                 <h5 class="fw-bold me-2"
-                                                    th:text="${#numbers.formatDecimal(featuredProduct.price, 0, 'POINT', 0, 'COMMA') + ' ₫'}">
-                                                    0 ₫
+                                                    th:text="${#numbers.formatDecimal(featuredProduct.price, 0, 'POINT', 0, 'COMMA') + ' ₫ / ' + featuredProduct.unit.symbol}">
+                                                    0 ₫ / đơn vị
                                                 </h5>
                                             </div>
                                         </a>
@@ -246,51 +254,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-6 col-lg-6 col-xl-4" th:each="product : ${products}">
-                                        <div class="rounded position-relative fruite-item h-100">
-                                            <a class="fruite-img d-block" th:href="@{/product/{id}(id=${product.id})}">
-                                                <img th:src="${#strings.isEmpty(product.image) ? '/img/hero-img.jpg' : product.image}"
-                                                     src="/img/hero-img.jpg"
-                                                     class="img-fluid w-100 rounded-top"
-                                                     th:alt="${product.name}"
-                                                     alt="Sản phẩm">
-                                            </a>
-                                            <div class="text-white bg-secondary px-3 py-1 rounded position-absolute"
-                                                 style="top: 10px; left: 10px;"
-                                                 th:text="${product.category.name}">Danh mục</div>
-                                            <div class="p-4 border border-secondary border-top-0 rounded-bottom">
-                                                <h4>
-                                                    <a class="text-dark" th:href="@{/product/{id}(id=${product.id})}"
-                                                       th:text="${product.name}">Tên sản phẩm</a>
-                                                </h4>
-                                                <p th:text="${#strings.isEmpty(product.description) ? 'Sản phẩm sạch được chọn lọc kỹ lưỡng.' : product.description}">
-                                                    Mô tả sản phẩm
-                                                </p>
-                                                <p class="small text-muted mb-2">
-                                                    Còn lại: <span th:text="${product.quantity}">0</span> kg
-                                                </p>
-                                                <div class="d-flex justify-content-between flex-lg-wrap align-items-center gap-2">
-                                                    <p class="text-dark fs-5 fw-bold mb-0"
-                                                       th:text="${#numbers.formatDecimal(product.price, 0, 'POINT', 0, 'COMMA') + ' ₫ / kg'}">
-                                                        0 ₫ / kg
-                                                    </p>
-                                                    <form sec:authorize="isAuthenticated()" th:action="@{/cart/items}" method="post"
-                                                          data-cart-add>
-                                                        <input type="hidden" name="productId" th:value="${product.id}">
-                                                        <input type="hidden" name="quantity" value="1">
-                                                        <button type="submit" class="btn border border-secondary rounded-pill px-3 text-primary"
-                                                                th:disabled="${product.quantity <= 0}">
-                                                            <i class="fa fa-shopping-bag me-2 text-primary"></i> Thêm vào giỏ
-                                                        </button>
-                                                    </form>
-                                                    <a sec:authorize="isAnonymous()" th:href="@{/login}"
-                                                       class="btn border border-secondary rounded-pill px-3 text-primary">
-                                                        <i class="fa fa-sign-in-alt me-2 text-primary"></i> Đăng nhập để mua
-                                                    </a>
-                                                </div>
-                                                <a class="btn btn-link px-0 mt-2"
-                                                   th:href="@{/product/{id}(id=${product.id})}">Xem chi tiết</a>
-                                            </div>
-                                        </div>
+                                        <article th:replace="~{fragments/product-card :: card(${product}, ${null})}"></article>
                                     </div>
                                 </div>
                                 <nav class="mt-5" aria-label="Phân trang sản phẩm"
@@ -437,6 +401,7 @@
     <!-- Template Javascript -->
     <script th:src="@{/js/main.js}" src="/js/main.js"></script>
     <script th:src="@{/js/cart.js}" src="/js/cart.js"></script>
+    <script th:src="@{/js/wishlist.js}" src="/js/wishlist.js"></script>
     </body>
 
 </html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<article th:fragment="card(cardProduct, reason)" class="card product-card h-100" data-product-card data-home-product-card
+         th:with="saved=${wishlistProductIds != null and wishlistProductIds.contains(cardProduct.id)}">
+    <a class="product-card-image" th:href="@{/product/{id}(id=${cardProduct.id})}">
+        <img th:src="${#strings.isEmpty(cardProduct.image) ? '/img/hero-img.jpg' : cardProduct.image}"
+             th:alt="${cardProduct.name}" loading="lazy">
+    </a>
+    <span th:if="${cardProduct.onPromotion}" class="badge bg-danger position-absolute top-0 start-0 m-2" th:text="${cardProduct.flashSale?'Flash Sale':'Khuyến mãi'}">Sale</span>
+    <button sec:authorize="isAuthenticated()" type="button" class="product-card-favorite"
+            data-wishlist-toggle th:data-product-id="${cardProduct.id}" th:data-wishlisted="${saved}"
+            th:aria-pressed="${saved}" th:aria-label="${saved ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}"
+            th:title="${saved ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}">
+        <i class="fa-heart" th:classappend="${saved ? 'fas text-danger' : 'far'}" aria-hidden="true"></i>
+    </button>
+    <a sec:authorize="isAnonymous()" class="product-card-favorite" th:href="@{/login}"
+       aria-label="Đăng nhập để thêm vào yêu thích" title="Đăng nhập để thêm vào yêu thích">
+        <i class="far fa-heart" aria-hidden="true"></i>
+    </a>
+    <div class="card-body product-card-body">
+        <a class="product-card-category" th:href="@{/shop(categoryId=${cardProduct.category.id})}"
+           th:text="${cardProduct.category.name}">Danh mục</a>
+        <h4 class="product-card-title"><a th:href="@{/product/{id}(id=${cardProduct.id})}"
+            th:title="${cardProduct.name}" th:text="${cardProduct.name}">Tên sản phẩm</a></h4>
+        <p th:if="${!#strings.isEmpty(reason)}" class="product-card-reason" th:text="${reason}">Lý do gợi ý</p>
+        <p class="small text-muted mb-1" th:text="${'Đơn vị bán: ' + cardProduct.unit.symbol}">Đơn vị bán</p>
+        <p th:if="${cardProduct.onPromotion}" class="small text-muted text-decoration-line-through mb-0" th:text="${#numbers.formatDecimal(cardProduct.price,0,'POINT',0,'COMMA')+' ₫'}"></p>
+        <p class="product-card-price" th:text="${#numbers.formatDecimal(cardProduct.effectivePrice,0,'POINT',0,'COMMA')+' ₫ / '+cardProduct.unit.symbol}">0 ₫ / đơn vị</p>
+        <p class="small product-card-stock" th:classappend="${cardProduct.quantity > 0 ? 'text-success' : 'text-danger'}"
+           th:text="${cardProduct.quantity > 0 ? 'Còn hàng' : 'Hết hàng'}">Còn hàng</p>
+        <div class="product-card-actions">
+            <form sec:authorize="isAuthenticated()" th:action="@{/cart/items}" method="post" data-cart-add>
+                <input type="hidden" name="productId" th:value="${cardProduct.id}">
+                <input type="hidden" name="quantity" value="1">
+                <button type="submit" class="btn btn-outline-primary w-100" th:disabled="${cardProduct.quantity <= 0}">
+                    <i class="fa fa-shopping-bag me-2" aria-hidden="true"></i>Thêm vào giỏ
+                </button>
+            </form>
+            <th:block sec:authorize="isAnonymous()">
+                <a th:if="${cardProduct.quantity > 0}" th:href="@{/login}" class="btn btn-outline-primary w-100"
+                   title="Đăng nhập để mua hàng"><i class="fa fa-shopping-bag me-2" aria-hidden="true"></i>Thêm vào giỏ</a>
+                <button th:unless="${cardProduct.quantity > 0}" type="button" class="btn btn-outline-primary w-100" disabled>
+                    <i class="fa fa-shopping-bag me-2" aria-hidden="true"></i>Thêm vào giỏ
+                </button>
+            </th:block>
+        </div>
+    </div>
+</article>
+</body>
+</html>

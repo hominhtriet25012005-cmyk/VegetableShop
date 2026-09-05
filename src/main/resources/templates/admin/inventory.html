@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Quản lý kho - Admin</title>
+    <link th:href="@{/admin/css/bootstrap.min.css}" rel="stylesheet">
+    <link th:href="@{/admin/vendors/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet">
+    <link th:href="@{/admin/css/style.css}" rel="stylesheet">
+</head>
+<body>
+<div class="admin-shell">
+    <div class="sidebar-backdrop" data-sidebar-close></div>
+    <aside th:replace="~{admin/fragments :: sidebar('inventory')}"></aside>
+    <div class="admin-main">
+        <nav th:replace="~{admin/fragments :: topbar}"></nav>
+        <main class="dashboard-content">
+            <div class="container-fluid px-3 px-lg-4 py-4">
+                <div class="page-heading">
+                    <div class="page-heading-copy">
+                        <span class="page-icon"><i class="bi bi-boxes"></i></span>
+                        <div><p class="eyebrow mb-1">Giai đoạn 18</p><h1 class="h3 mb-1">Quản lý kho</h1><p class="text-muted mb-0">Nhập, xuất, kiểm kê và theo dõi cảnh báo tồn kho.</p></div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2"><a class="btn btn-primary" th:href="@{/admin/inventory/documents/new}"><i class="bi bi-plus-lg"></i> Tạo phiếu kho</a><a class="btn btn-outline-primary" th:href="@{/admin/inventory/documents}"><i class="bi bi-file-earmark-text"></i> Danh sách phiếu</a><a class="btn btn-light" th:href="@{/admin/inventory/history}"><i class="bi bi-clock-history"></i> Lịch sử kho</a></div>
+                </div>
+
+                <div th:replace="~{admin/fragments :: messages}"></div>
+
+                <section class="row g-3 mb-3">
+                    <div class="col-md-4"><article class="metric-card h-100"><div class="metric-top"><span class="metric-label">Tổng tồn kho</span><span class="metric-icon"><i class="bi bi-boxes"></i></span></div><div class="metric-value" th:text="${inventory.totalInventoryUnits}">0</div><div class="text-muted small">đơn vị sản phẩm</div></article></div>
+                    <div class="col-md-4"><article class="metric-card metric-warning h-100"><div class="metric-top"><span class="metric-label">Sắp hết hàng</span><span class="metric-icon"><i class="bi bi-exclamation-triangle"></i></span></div><div class="metric-value" th:text="${inventory.lowStockProductCount}">0</div><div class="text-muted small">theo ngưỡng từng sản phẩm</div></article></div>
+                    <div class="col-md-4"><article class="metric-card metric-danger h-100"><div class="metric-top"><span class="metric-label">Hết hàng</span><span class="metric-icon"><i class="bi bi-x-octagon"></i></span></div><div class="metric-value" th:text="${inventory.outOfStockProductCount}">0</div><div class="text-muted small">cần nhập thêm</div></article></div>
+                </section>
+
+                <section class="panel mb-3">
+                    <form class="row g-3 align-items-end" th:action="@{/admin/inventory}" method="get">
+                        <div class="col-md-6"><label class="form-label" for="keyword">Tìm sản phẩm</label><input id="keyword" class="form-control" name="keyword" th:value="${keyword}" placeholder="Nhập tên sản phẩm"></div>
+                        <div class="col-md-4"><label class="form-label" for="stockStatus">Tình trạng kho</label><select id="stockStatus" class="form-select" name="stockStatus"><option value="ALL" th:selected="${selectedStockStatus == 'ALL'}">Tất cả</option><option value="LOW" th:selected="${selectedStockStatus == 'LOW'}">Sắp hết hàng</option><option value="OUT" th:selected="${selectedStockStatus == 'OUT'}">Hết hàng</option><option value="HEALTHY" th:selected="${selectedStockStatus == 'HEALTHY'}">Tồn kho ổn định</option></select></div>
+                        <div class="col-md-2"><button class="btn btn-primary w-100" type="submit"><i class="bi bi-funnel"></i> Lọc</button></div>
+                    </form>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header"><div><h2 class="h5 mb-1 section-title"><i class="bi bi-box-seam"></i><span>Tồn kho sản phẩm</span></h2><p class="text-muted mb-0">Số lượng được cập nhật bằng transaction và lưu lịch sử.</p></div></div>
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead><tr><th>Sản phẩm</th><th>Danh mục</th><th>Thương hiệu</th><th>Tồn hiện tại</th><th>Ngưỡng cảnh báo</th><th>Thao tác</th></tr></thead>
+                            <tbody>
+                            <tr th:each="row : ${inventory.products}">
+                                <td><div class="fw-semibold" th:text="${row.productName}">Sản phẩm</div><small class="text-muted" th:text="${row.active ? 'Đang bán' : 'Đã ẩn'}">Trạng thái</small></td>
+                                <td th:text="${row.categoryName}">Danh mục</td>
+                                <td th:text="${row.brandName}">Thương hiệu</td>
+                                <td><span class="badge" th:classappend="${row.outOfStock()} ? ' text-bg-danger' : (${row.lowStock()} ? ' text-bg-warning' : ' text-bg-success')" th:text="${row.quantity}">0</span></td>
+                                <td><form class="d-flex gap-2" th:action="@{/admin/inventory/{id}/threshold(id=${row.productId})}" method="post"><input class="form-control form-control-sm" style="max-width:90px" type="number" min="0" max="1000000" name="threshold" th:value="${row.lowStockThreshold}" aria-label="Ngưỡng cảnh báo"><button class="btn btn-light btn-sm" type="submit" title="Lưu ngưỡng"><i class="bi bi-check-lg"></i></button></form></td>
+                                <td><div class="d-flex flex-wrap gap-1"><a class="btn btn-outline-primary btn-sm" th:href="@{/admin/inventory/documents(productId=${row.productId})}"><i class="bi bi-file-earmark-text"></i> Phiếu kho</a><a class="btn btn-primary btn-sm" th:href="@{/admin/inventory/documents/new(type='INBOUND',productId=${row.productId})}"><i class="bi bi-file-earmark-plus"></i> Nhập mới</a><a class="btn btn-light btn-sm" th:href="@{/admin/inventory/history(productId=${row.productId})}" title="Lịch sử sản phẩm"><i class="bi bi-clock-history"></i></a></div></td>
+                            </tr>
+                            <tr th:if="${#lists.isEmpty(inventory.products)}"><td colspan="6" class="text-center text-muted py-5">Không tìm thấy sản phẩm phù hợp.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <nav th:if="${inventory.totalPages > 1}" class="mt-3" aria-label="Phân trang tồn kho">
+                        <ul class="pagination mb-0 justify-content-end">
+                            <li class="page-item" th:classappend="${!inventory.hasPreviousPage()} ? ' disabled'">
+                                <a class="page-link" th:href="@{/admin/inventory(keyword=${keyword},stockStatus=${selectedStockStatus},page=${inventory.pageNumber-1})}">Trước</a>
+                            </li>
+                            <li class="page-item" th:each="pageIndex : ${#numbers.sequence(0, inventory.totalPages-1)}"
+                                th:classappend="${pageIndex == inventory.pageNumber} ? ' active'">
+                                <a class="page-link" th:href="@{/admin/inventory(keyword=${keyword},stockStatus=${selectedStockStatus},page=${pageIndex})}"
+                                   th:text="${pageIndex + 1}">1</a>
+                            </li>
+                            <li class="page-item" th:classappend="${!inventory.hasNextPage()} ? ' disabled'">
+                                <a class="page-link" th:href="@{/admin/inventory(keyword=${keyword},stockStatus=${selectedStockStatus},page=${inventory.pageNumber+1})}">Sau</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </section>
+            </div>
+        </main>
+        <footer th:replace="~{admin/fragments :: footer}"></footer>
+    </div>
+</div>
+<script th:src="@{/admin/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/admin/js/main.js}"></script>
+</body>
+</html>

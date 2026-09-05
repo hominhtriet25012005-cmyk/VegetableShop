@@ -97,7 +97,7 @@
                                class="text-dark fw-semibold" th:text="${item.product.name}">Tên sản phẩm</a>
                             <small class="d-block text-muted" th:text="${'Tồn kho: ' + item.product.quantity}">Tồn kho</small>
                         </td>
-                        <td th:text="${#numbers.formatDecimal(item.product.price, 0, 'POINT', 0, 'COMMA') + ' ₫'}">0 ₫</td>
+                        <td><small th:if="${item.product.onPromotion}" class="d-block text-muted text-decoration-line-through" th:text="${#numbers.formatDecimal(item.product.price,0,'POINT',0,'COMMA')+' ₫'}"></small><span th:text="${#numbers.formatDecimal(item.product.effectivePrice, 0, 'POINT', 0, 'COMMA') + ' ₫'}">0 ₫</span></td>
                         <td>
                             <form th:action="@{/cart/items/{id}/quantity(id=${item.id})}" method="post"
                                   class="d-flex align-items-center gap-2" data-cart-update th:attr="data-item-id=${item.id}">

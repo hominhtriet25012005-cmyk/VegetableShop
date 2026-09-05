@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,8 +13,10 @@
     <link th:href="@{/css/style.css}" href="/css/style.css" rel="stylesheet">
 </head>
 <body class="bg-light">
-<main class="container py-5">
-    <div class="row justify-content-center py-5">
+<div th:replace="~{fragments/public-shell :: header('login')}"></div>
+
+<main class="container pb-5" style="padding-top: 180px;">
+    <div class="row justify-content-center py-4">
         <div class="col-md-7 col-lg-5">
             <div class="bg-white rounded shadow-sm p-4 p-md-5">
                 <a th:href="@{/}" href="/" class="text-decoration-none">
@@ -24,11 +27,23 @@
                 <div th:if="${param.registered}" class="alert alert-success">
                     Đăng ký thành công. Bạn có thể đăng nhập ngay bây giờ.
                 </div>
+                <div th:if="${param.activationSent}" class="alert alert-success">
+                    Đăng ký thành công. Vui lòng kiểm tra email để kích hoạt tài khoản trước khi đăng nhập.
+                </div>
+                <div th:if="${param.activated}" class="alert alert-success">
+                    Tài khoản đã được kích hoạt. Bạn có thể đăng nhập ngay bây giờ.
+                </div>
                 <div th:if="${param.error}" class="alert alert-danger">
                     Email hoặc mật khẩu không đúng, hoặc tài khoản đã bị khóa.
                 </div>
                 <div th:if="${param.logout}" class="alert alert-info">
                     Bạn đã đăng xuất thành công.
+                </div>
+                <div th:if="${param.passwordReset}" class="alert alert-success">
+                    Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới.
+                </div>
+                <div th:if="${param.oauthError}" class="alert alert-danger">
+                    Không thể đăng nhập bằng Google. Vui lòng thử lại hoặc dùng email và mật khẩu.
                 </div>
 
                 <form th:action="@{/login}" action="/login" method="post">
@@ -45,16 +60,33 @@
                     <button type="submit" class="btn btn-primary text-white w-100 py-3">Đăng nhập</button>
                 </form>
 
+                <div class="text-center mt-3">
+                    <a th:href="@{/forgot-password}" href="/forgot-password">Quên mật khẩu?</a>
+                </div>
+                <div th:if="${mailEnabled}" class="text-center mt-2">
+                    <a th:href="@{/resend-activation}" href="/resend-activation">Gửi lại email kích hoạt</a>
+                </div>
+
+                <div th:if="${googleLoginEnabled}" class="mt-4">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <hr class="flex-grow-1"><span class="text-muted small">HOẶC</span><hr class="flex-grow-1">
+                    </div>
+                    <a th:href="@{/oauth2/authorization/google}" href="/oauth2/authorization/google"
+                       class="btn btn-outline-dark w-100 py-3">
+                        <i class="fab fa-google me-2 text-danger"></i>Đăng nhập với Google
+                    </a>
+                </div>
+
                 <p class="text-center mt-4 mb-0">
                     Chưa có tài khoản?
                     <a th:href="@{/register}" href="/register">Đăng ký</a>
-                </p>
-                <p class="text-center mt-3 mb-0">
-                    <a th:href="@{/shop}" href="/shop">Quay lại cửa hàng</a>
                 </p>
             </div>
         </div>
     </div>
 </main>
+
+<div th:replace="~{fragments/public-shell :: footer}"></div>
+<th:block th:replace="~{fragments/public-shell :: scripts}"></th:block>
 </body>
 </html>

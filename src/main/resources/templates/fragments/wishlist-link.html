@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<a th:fragment="wishlistLink" th:href="@{/wishlist}" href="/wishlist"
+   class="position-relative me-4 my-auto" title="Sản phẩm yêu thích" data-wishlist-icon>
+    <i class="fa fa-heart fa-2x"></i>
+    <span class="position-absolute bg-secondary rounded-circle d-flex align-items-center justify-content-center text-dark px-1"
+          style="top: -5px; left: 18px; height: 20px; min-width: 20px;"
+          data-wishlist-count
+          th:text="${wishlistItemCount ?: 0}">0</span>
+</a>
+</body>
+</html>

@@ -6,8 +6,11 @@ import com.vegetableshop.entity.Product;
 import com.vegetableshop.exception.ReviewOperationException;
 import com.vegetableshop.service.CategoryService;
 import com.vegetableshop.service.ProductService;
+import com.vegetableshop.service.ProductViewHistoryService;
+import com.vegetableshop.service.RecommendationService;
 import com.vegetableshop.service.RecentlyViewedService;
 import com.vegetableshop.service.ReviewService;
+import com.vegetableshop.service.WishlistService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.context.annotation.Profile;
@@ -30,24 +33,39 @@ public class ProductController {
     private final CategoryService categoryService;
     private final ReviewService reviewService;
     private final RecentlyViewedService recentlyViewedService;
+    private final ProductViewHistoryService productViewHistoryService;
+    private final RecommendationService recommendationService;
+    private final WishlistService wishlistService;
 
     public ProductController(
         ProductService productService,
         CategoryService categoryService,
         ReviewService reviewService,
-        RecentlyViewedService recentlyViewedService
+        RecentlyViewedService recentlyViewedService,
+        ProductViewHistoryService productViewHistoryService,
+        RecommendationService recommendationService,
+        WishlistService wishlistService
     ) {
         this.productService = productService;
         this.categoryService = categoryService;
         this.reviewService = reviewService;
         this.recentlyViewedService = recentlyViewedService;
+        this.productViewHistoryService = productViewHistoryService;
+        this.recommendationService = recommendationService;
+        this.wishlistService = wishlistService;
     }
 
     @GetMapping("/shop")
-    public String shop(@ModelAttribute("filter") ProductFilter filter, Model model) {
+    public String shop(
+        @ModelAttribute("filter") ProductFilter filter,
+        Authentication authentication,
+        Model model
+    ) {
         Page<Product> productPage = productService.search(filter);
+        String email = authenticatedEmail(authentication);
         model.addAttribute("productPage", productPage);
         model.addAttribute("products", productPage.getContent());
+        model.addAttribute("wishlistProductIds", wishlistService.findActiveProductIds(email));
         model.addAttribute("featuredProducts", productService.findNewestProducts());
         model.addAttribute("categories", categoryService.findAllActiveCategories());
         return "shop";
@@ -62,19 +80,26 @@ public class ProductController {
     ) {
         Product product = productService.findActiveProduct(id);
         String email = authenticatedEmail(authentication);
-        ReviewRequest reviewRequest = reviewService.findOwnReview(email, id)
-            .map(ReviewRequest::from)
-            .orElseGet(ReviewRequest::new);
+        java.util.List<Product> recentlyViewedProducts = email == null
+            ? productService.findActiveProductsInOrder(recentlyViewedService.recordAndGetPrevious(session, id))
+            : productViewHistoryService.recordAndFindPrevious(email, id);
+        ReviewRequest reviewRequest = new ReviewRequest();
+        var eligiblePurchases = reviewService.eligiblePurchases(email, id);
+        model.addAttribute("eligiblePurchases", eligiblePurchases);
+        model.addAttribute("ownReviews", reviewService.findOwnReviews(email, id));
         model.addAttribute("product", product);
+        model.addAttribute("productImages", productService.galleryImages(product));
         model.addAttribute("relatedProducts", productService.findRelatedProducts(product));
-        model.addAttribute("sameSupplierProducts", productService.findSameSupplierProducts(product));
-        model.addAttribute("recentlyViewedProducts", productService.findActiveProductsInOrder(
-            recentlyViewedService.recordAndGetPrevious(session, id)));
+        model.addAttribute("sameBrandProducts", productService.findSameBrandProducts(product));
+        model.addAttribute("recentlyViewedProducts", recentlyViewedProducts);
+        model.addAttribute("recommendedProducts", recommendationService.recommend(product, recentlyViewedProducts));
+        model.addAttribute("wishlisted", wishlistService.contains(email, id));
+        model.addAttribute("wishlistProductIds", wishlistService.findActiveProductIds(email));
         model.addAttribute("featuredProducts", productService.findNewestProducts());
         model.addAttribute("categories", categoryService.findAllActiveCategories());
         model.addAttribute("reviews", reviewService.findByProduct(id));
         model.addAttribute("reviewSummary", reviewService.summarize(id));
-        model.addAttribute("canReview", reviewService.canReview(email, id));
+        model.addAttribute("canReview", !eligiblePurchases.isEmpty());
         model.addAttribute("reviewRequest", reviewRequest);
         return "shop-detail";
     }
@@ -94,9 +119,11 @@ public class ProductController {
         }
         try {
             reviewService.save(authentication.getName(), id, request);
-            attributes.addFlashAttribute("successMessage", "Đã lưu đánh giá của bạn");
+            attributes.addFlashAttribute("successMessage", "Đã gửi đánh giá. Nội dung và ảnh sẽ hiển thị sau khi Admin duyệt");
         } catch (ReviewOperationException exception) {
             attributes.addFlashAttribute("errorMessage", exception.getMessage());
+        } catch (org.springframework.dao.DataIntegrityViolationException exception) {
+            attributes.addFlashAttribute("errorMessage", "Không lưu được đánh giá: đơn có thể đã được đánh giá hoặc database chưa nâng cấp giai đoạn 19");
         }
         return "redirect:/product/" + id + "#reviews";
     }

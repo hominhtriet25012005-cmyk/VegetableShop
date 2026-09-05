@@ -1,0 +1,17 @@
+<!DOCTYPE html><html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Đánh giá sản phẩm - Admin</title>
+<link th:href="@{/admin/css/bootstrap.min.css}" rel="stylesheet"><link th:href="@{/admin/vendors/bootstrap-icons/bootstrap-icons.css}" rel="stylesheet"><link th:href="@{/admin/css/style.css}" rel="stylesheet"></head>
+<body><div class="admin-shell"><div class="sidebar-backdrop" data-sidebar-close></div><aside th:replace="~{admin/fragments :: sidebar('reviews')}"></aside><div class="admin-main">
+<nav th:replace="~{admin/fragments :: topbar}"></nav><main class="dashboard-content"><div class="container-fluid px-3 px-lg-4 py-4">
+<h1 class="h3">Đánh giá sản phẩm</h1><p class="text-muted">Kiểm duyệt nội dung và ảnh từ những đơn hàng đã hoàn tất. Chỉ đánh giá đã duyệt được tính điểm.</p>
+<div th:replace="~{admin/fragments :: messages}"></div>
+<section class="panel p-3"><form method="get" th:action="@{/admin/reviews}" class="row g-2 mb-3">
+<div class="col-md-5"><input class="form-control" name="keyword" th:value="${keyword}" maxlength="150" placeholder="Tìm sản phẩm hoặc khách hàng" aria-label="Tìm đánh giá"></div>
+<div class="col-md-3"><select name="status" class="form-select" aria-label="Trạng thái"><option value="">Tất cả trạng thái</option><option th:each="state : ${statuses}" th:value="${state}" th:text="${state.displayName}" th:selected="${state == selectedStatus}"></option></select></div>
+<div class="col-md-4"><button class="btn btn-primary">Lọc</button> <a class="btn btn-light" th:href="@{/admin/reviews}">Xóa bộ lọc</a></div></form>
+<div class="table-responsive"><table class="table align-middle"><thead><tr><th>Sản phẩm</th><th>Khách hàng</th><th>Sao</th><th>Trạng thái</th><th>Ngày gửi</th><th></th></tr></thead>
+<tbody><tr th:each="review : ${reviewPage.content}"><td th:text="${review.product.name}"></td><td th:text="${review.user.fullName}"></td><td th:text="${review.rating + ' ★'}"></td><td><span class="badge bg-secondary" th:text="${review.status.displayName}"></span><small th:unless="${review.verifiedPurchase}" class="d-block text-warning">Chưa xác minh (dữ liệu cũ)</small></td><td th:text="${#temporals.format(review.createdAt, 'dd/MM/yyyy HH:mm')}"></td><td><a class="btn btn-outline-primary btn-sm" th:href="@{/admin/reviews/{id}(id=${review.id})}">Xem / Duyệt</a></td></tr>
+<tr th:if="${reviewPage.empty}"><td colspan="6" class="text-center py-4">Không có đánh giá phù hợp.</td></tr></tbody></table></div>
+<nav class="d-flex flex-wrap align-items-center gap-3" aria-label="Phân trang đánh giá"><a th:if="${reviewPage.hasPrevious()}" class="btn btn-light" th:href="@{/admin/reviews(keyword=${keyword},status=${selectedStatus},page=${reviewPage.number - 1})}">Trước</a><span th:text="${'Trang ' + (reviewPage.number + 1) + ' / ' + T(java.lang.Math).max(1,reviewPage.totalPages) + ' — ' + reviewPage.totalElements + ' đánh giá'}"></span><a th:if="${reviewPage.hasNext()}" class="btn btn-light" th:href="@{/admin/reviews(keyword=${keyword},status=${selectedStatus},page=${reviewPage.number + 1})}">Sau</a></nav>
+</section></div></main><footer th:replace="~{admin/fragments :: footer}"></footer></div></div>
+<script th:src="@{/admin/js/bootstrap.bundle.min.js}"></script><script th:src="@{/admin/js/main.js}"></script></body></html>

@@ -1,0 +1,8 @@
+<!DOCTYPE html><html lang="vi" xmlns:th="http://www.thymeleaf.org"><body>
+<div th:fragment="gallery(review)" class="d-flex flex-wrap gap-2 mt-3">
+    <a th:each="photo : ${review.images}" th:href="@{/review-images/{id}(id=${photo.id})}" target="_blank" rel="noopener" title="Mở ảnh đánh giá">
+        <img th:src="@{/review-images/{id}(id=${photo.id})}" alt="Ảnh khách hàng đánh giá sản phẩm"
+             width="96" height="96" class="rounded border" style="object-fit:cover" loading="lazy">
+    </a>
+</div>
+</body></html>

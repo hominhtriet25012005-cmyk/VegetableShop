@@ -22,8 +22,18 @@ public class CheckoutRequest {
     private String note;
 
     @NotBlank(message = "Vui lòng chọn phương thức thanh toán")
-    @Pattern(regexp = "^COD$", message = "Giai đoạn 7 chỉ hỗ trợ thanh toán COD")
+    @Pattern(regexp = "^(COD|BANK_TRANSFER)$", message = "Phương thức thanh toán không được hỗ trợ")
     private String paymentMethod = "COD";
+
+    @Size(max = 30, message = "Mã voucher không được vượt quá 30 ký tự")
+    @Pattern(regexp = "^$|^[A-Za-z0-9_-]{3,30}$", message = "Mã voucher không đúng định dạng")
+    private String voucherCode;
+
+    @NotBlank
+    @Pattern(regexp = "^[a-fA-F0-9-]{36}$")
+    private String checkoutToken = java.util.UUID.randomUUID().toString();
+    public String getCheckoutToken() { return checkoutToken; }
+    public void setCheckoutToken(String token) { this.checkoutToken = token; }
 
     public String getReceiverName() { return receiverName; }
     public void setReceiverName(String receiverName) { this.receiverName = receiverName; }
@@ -35,4 +45,6 @@ public class CheckoutRequest {
     public void setNote(String note) { this.note = note; }
     public String getPaymentMethod() { return paymentMethod; }
     public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
+    public String getVoucherCode() { return voucherCode; }
+    public void setVoucherCode(String voucherCode) { this.voucherCode = voucherCode; }
 }

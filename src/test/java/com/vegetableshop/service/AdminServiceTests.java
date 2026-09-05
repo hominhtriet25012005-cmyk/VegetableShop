@@ -11,12 +11,14 @@ import com.vegetableshop.entity.PaymentStatus;
 import com.vegetableshop.entity.Product;
 import com.vegetableshop.entity.Role;
 import com.vegetableshop.entity.User;
+import com.vegetableshop.event.OrderStatusChangedMailEvent;
 import com.vegetableshop.exception.AdminOperationException;
 import com.vegetableshop.repository.CategoryRepository;
 import com.vegetableshop.repository.OrderRepository;
 import com.vegetableshop.repository.ProductRepository;
 import com.vegetableshop.repository.UserRepository;
 import com.vegetableshop.repository.SupplierRepository;
+import com.vegetableshop.repository.BrandRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -25,6 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -48,6 +51,10 @@ class AdminServiceTests {
     @Mock private OrderRepository orderRepository;
     @Mock private UserRepository userRepository;
     @Mock private SupplierRepository supplierRepository;
+    @Mock private BrandRepository brandRepository;
+    @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private InventoryService inventoryService;
+    @Mock private InventoryDocumentService inventoryDocumentService;
 
     @Test
     void dashboardUsesCompletedRevenueAndDatabaseCounts() {
@@ -58,7 +65,7 @@ class AdminServiceTests {
         when(orderRepository.calculateRevenueByStatus(OrderStatus.COMPLETED))
             .thenReturn(new BigDecimal("250000"));
         when(orderRepository.findTop5ByOrderByCreatedAtDesc()).thenReturn(List.of());
-        when(productRepository.findTop5ByStatusTrueAndQuantityLessThanEqualOrderByQuantityAsc(10))
+        when(productRepository.findLowStockProducts(org.springframework.data.domain.PageRequest.of(0, 5)))
             .thenReturn(List.of());
 
         var dashboard = service().dashboard();
@@ -78,6 +85,7 @@ class AdminServiceTests {
         assertEquals("Cà rốt", product.getName());
         assertEquals(new BigDecimal("25000"), product.getPrice());
         assertEquals(category, product.getCategory());
+        assertEquals("<p>Mô tả <strong>an toàn</strong></p>", product.getDescription());
     }
 
     @Test
@@ -88,7 +96,7 @@ class AdminServiceTests {
         when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
             .thenReturn(resultPage);
 
-        var result = service().findProducts("  Cam  ", 3L, false, 2);
+        var result = service().findProducts("  Cam  ", 3L, 4L, false, 2);
 
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
         verify(productRepository).findAll(any(Specification.class), pageableCaptor.capture());
@@ -109,21 +117,19 @@ class AdminServiceTests {
     }
 
     @Test
-    void cancellingPendingOrderRestoresEveryProductStock() {
+    void cancellingPendingOrderDelegatesStockRestoreToInventoryLedger() {
         Product first = product(1L, 4);
         Product second = product(2L, 8);
         Order order = order(OrderStatus.PENDING);
         order.addDetail(detail(first, 3));
         order.addDetail(detail(second, 2));
-        when(orderRepository.findAdminById(9L)).thenReturn(Optional.of(order));
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(first));
-        when(productRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(second));
+        when(orderRepository.findByIdForUpdate(9L)).thenReturn(Optional.of(order));
 
         service().updateOrderStatus(9L, OrderStatus.CANCELLED);
 
         assertEquals(OrderStatus.CANCELLED, order.getStatus());
-        assertEquals(7, first.getQuantity());
-        assertEquals(10, second.getQuantity());
+        verify(inventoryService).restoreCancelledOrder(order, "SYSTEM");
+        verify(eventPublisher).publishEvent(any(OrderStatusChangedMailEvent.class));
     }
 
     @Test
@@ -131,7 +137,7 @@ class AdminServiceTests {
         Order order = order(OrderStatus.SHIPPING);
         order.setPaymentMethod(PaymentMethod.COD);
         order.setPaymentStatus(PaymentStatus.UNPAID);
-        when(orderRepository.findAdminById(6L)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdForUpdate(6L)).thenReturn(Optional.of(order));
 
         service().updateOrderStatus(6L, OrderStatus.COMPLETED);
 
@@ -143,11 +149,31 @@ class AdminServiceTests {
     @Test
     void orderCannotSkipWorkflowSteps() {
         Order order = order(OrderStatus.PENDING);
-        when(orderRepository.findAdminById(5L)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(order));
 
         assertThrows(AdminOperationException.class,
             () -> service().updateOrderStatus(5L, OrderStatus.COMPLETED));
         assertEquals(OrderStatus.PENDING, order.getStatus());
+    }
+
+    @Test
+    void bankOrdersRequireConfirmedPaymentBeforeShipping() {
+        Order order=order(OrderStatus.CONFIRMED);order.setPaymentMethod(PaymentMethod.BANK_TRANSFER);order.setPaymentStatus(PaymentStatus.REPORTED);
+        when(orderRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(order));
+        assertThrows(AdminOperationException.class,()->service().updateOrderStatus(7L,OrderStatus.SHIPPING));
+        order.setPaymentStatus(PaymentStatus.PAID);service().updateOrderStatus(7L,OrderStatus.SHIPPING);
+        assertEquals(OrderStatus.SHIPPING,order.getStatus());
+        verify(inventoryService,never()).restoreCancelledOrder(any(),any());
+    }
+
+    @Test
+    void reportedOrPaidBankOrdersCannotBeCancelledDirectly() {
+        Order order=order(OrderStatus.PENDING);order.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
+        when(orderRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(order));
+        for (PaymentStatus state:java.util.List.of(PaymentStatus.REPORTED,PaymentStatus.PAID)) {
+            order.setPaymentStatus(state);assertThrows(AdminOperationException.class,()->service().updateOrderStatus(7L,OrderStatus.CANCELLED));
+        }
+        verify(inventoryService,never()).restoreCancelledOrder(any(),any());
     }
 
     @Test
@@ -179,12 +205,14 @@ class AdminServiceTests {
 
     private AdminService service() {
         return new AdminService(productRepository, categoryRepository, orderRepository, userRepository,
-            supplierRepository);
+            supplierRepository, brandRepository, eventPublisher, inventoryService, inventoryDocumentService);
     }
 
     private AdminProductRequest productRequest() {
         AdminProductRequest request = new AdminProductRequest();
+        request.setSku("RAU-CAROT-01");
         request.setName(" Cà rốt ");
+        request.setDescription("<p>Mô tả <strong>an toàn</strong><script>alert(1)</script></p>");
         request.setPrice(new BigDecimal("25000"));
         request.setQuantity(10);
         request.setCategoryId(2L);
@@ -209,6 +237,11 @@ class AdminServiceTests {
     private Order order(OrderStatus status) {
         Order order = new Order();
         order.setStatus(status);
+        order.setOrderCode("VS-TEST");
+        User user = new User();
+        user.setEmail("user@example.com");
+        user.setFullName("Nguyễn Văn An");
+        order.setUser(user);
         return order;
     }
 

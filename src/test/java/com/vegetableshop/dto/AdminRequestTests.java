@@ -37,6 +37,7 @@ class AdminRequestTests {
 
     private AdminProductRequest validProduct() {
         AdminProductRequest request = new AdminProductRequest();
+        request.setSku("RAU-CU-001");
         request.setName("Cà rốt");
         request.setPrice(new BigDecimal("25000"));
         request.setQuantity(10);

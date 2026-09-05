@@ -1,6 +1,8 @@
 -- Vegetable Shop - MySQL 8.x database schema
--- Core tables: users, categories, products, carts, cart_items,
---              orders, order_details, reviews
+-- Core tables: users, password_reset_tokens, account_activation_tokens, categories, suppliers, products,
+--              carts, cart_items, orders, order_details, reviews,
+--              wishlists, product_view_histories, stock_movements,
+--              chatbot_faqs, chatbot_interactions
 
 CREATE DATABASE IF NOT EXISTS vegetable_shop
     CHARACTER SET utf8mb4
@@ -17,21 +19,68 @@ CREATE TABLE IF NOT EXISTS users (
     id BIGINT NOT NULL AUTO_INCREMENT,
     full_name VARCHAR(100) NOT NULL,
     email VARCHAR(150) NOT NULL,
-    password VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NULL,
+    auth_provider VARCHAR(20) NOT NULL DEFAULT 'LOCAL',
+    oauth_subject VARCHAR(255) NULL,
     phone VARCHAR(20) NULL,
     address VARCHAR(255) NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'USER',
     status BOOLEAN NOT NULL DEFAULT TRUE,
+    email_verified BOOLEAN NOT NULL DEFAULT TRUE,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     CONSTRAINT uk_users_email UNIQUE (email),
+    CONSTRAINT uk_users_oauth_subject UNIQUE (oauth_subject),
+    CONSTRAINT chk_users_auth_provider CHECK (auth_provider IN ('LOCAL', 'GOOGLE')),
     CONSTRAINT chk_users_role CHECK (role IN ('USER', 'ADMIN'))
 ) ENGINE = InnoDB;
 
 -- =========================================================
--- 2. CATEGORIES
+-- 2. PASSWORD RESET TOKENS
+-- Only a SHA-256 hash is stored; the raw token is never persisted.
+-- =========================================================
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    token_hash VARCHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_password_reset_token_hash UNIQUE (token_hash),
+    CONSTRAINT fk_password_reset_user FOREIGN KEY (user_id)
+        REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_password_reset_user (user_id),
+    INDEX idx_password_reset_expiry (expires_at)
+) ENGINE = InnoDB;
+
+-- =========================================================
+-- 3. ACCOUNT ACTIVATION TOKENS
+-- Existing users are treated as verified; new registrations require this token when mail is enabled.
+-- =========================================================
+CREATE TABLE IF NOT EXISTS account_activation_tokens (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    token_hash VARCHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_activation_token_hash UNIQUE (token_hash),
+    CONSTRAINT fk_activation_token_user FOREIGN KEY (user_id)
+        REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_activation_token_user (user_id),
+    INDEX idx_activation_token_expiry (expires_at)
+) ENGINE = InnoDB;
+
+-- =========================================================
+-- 4. CATEGORIES
 -- Categories should normally be disabled instead of hard-deleted.
 -- =========================================================
 CREATE TABLE IF NOT EXISTS categories (
@@ -48,53 +97,89 @@ CREATE TABLE IF NOT EXISTS categories (
 ) ENGINE = InnoDB;
 
 -- =========================================================
--- 3. SUPPLIERS
--- Suppliers are disabled instead of deleted so historical Product data remains valid.
+-- 5. BRANDS
+-- Customer-facing label; deliberately separate from inventory suppliers.
 -- =========================================================
-CREATE TABLE IF NOT EXISTS suppliers (
+CREATE TABLE IF NOT EXISTS brands (
     id BIGINT NOT NULL AUTO_INCREMENT,
-    name VARCHAR(150) NOT NULL,
-    phone VARCHAR(20) NULL,
-    email VARCHAR(150) NULL,
-    address VARCHAR(255) NULL,
+    name VARCHAR(120) NOT NULL,
+    logo VARCHAR(500) NULL,
+    description TEXT NULL,
     status BOOLEAN NOT NULL DEFAULT TRUE,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    CONSTRAINT uk_suppliers_name UNIQUE (name)
+    CONSTRAINT uk_brands_name UNIQUE (name)
 ) ENGINE = InnoDB;
 
 -- =========================================================
--- 4. PRODUCTS
+-- 5A. SUPPLIERS
+-- Inventory partners; disabled instead of hard-deleted.
+-- =========================================================
+CREATE TABLE IF NOT EXISTS suppliers (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    code VARCHAR(30) NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    contact_person VARCHAR(100) NULL,
+    phone VARCHAR(20) NULL,
+    email VARCHAR(150) NULL,
+    address VARCHAR(255) NULL,
+    tax_code VARCHAR(30) NULL,
+    status BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_suppliers_name UNIQUE (name),
+    CONSTRAINT uk_suppliers_code UNIQUE (code)
+) ENGINE = InnoDB;
+
+-- =========================================================
+-- 6. PRODUCTS
 -- Each product belongs to exactly one category.
 -- =========================================================
 CREATE TABLE IF NOT EXISTS products (
     id BIGINT NOT NULL AUTO_INCREMENT,
+    sku VARCHAR(40) NOT NULL,
     name VARCHAR(150) NOT NULL,
     description TEXT NULL,
     price DECIMAL(15, 2) NOT NULL,
     quantity INT NOT NULL DEFAULT 0,
+    low_stock_threshold INT NOT NULL DEFAULT 10,
     image VARCHAR(500) NULL,
     category_id BIGINT NOT NULL,
+    brand_id BIGINT NULL,
+    unit VARCHAR(30) NOT NULL DEFAULT 'KILOGRAM',
+    origin VARCHAR(150) NULL,
+    -- Kept temporarily for Phase 18B compatibility. Inventory sourcing uses documents.
     supplier_id BIGINT NULL,
     status BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by VARCHAR(150) NOT NULL DEFAULT 'SYSTEM',
+    updated_by VARCHAR(150) NOT NULL DEFAULT 'SYSTEM',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
+    CONSTRAINT uk_products_sku UNIQUE (sku),
     CONSTRAINT chk_products_price CHECK (price >= 0),
     CONSTRAINT chk_products_quantity CHECK (quantity >= 0),
+    CONSTRAINT chk_products_low_stock_threshold CHECK (low_stock_threshold >= 0),
     CONSTRAINT fk_products_category
         FOREIGN KEY (category_id)
         REFERENCES categories (id)
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
+    CONSTRAINT fk_products_brand
+        FOREIGN KEY (brand_id)
+        REFERENCES brands (id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
     CONSTRAINT fk_products_supplier
         FOREIGN KEY (supplier_id)
         REFERENCES suppliers (id)
         ON UPDATE CASCADE
         ON DELETE SET NULL,
     INDEX idx_products_category_id (category_id),
+    INDEX idx_products_brand_id (brand_id),
     INDEX idx_products_supplier_id (supplier_id),
     INDEX idx_products_name (name),
     INDEX idx_products_status (status),
@@ -102,7 +187,147 @@ CREATE TABLE IF NOT EXISTS products (
 ) ENGINE = InnoDB;
 
 -- =========================================================
--- 4. CARTS
+-- 6A. PRODUCT IMAGES
+-- =========================================================
+CREATE TABLE IF NOT EXISTS product_images (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    product_id BIGINT NOT NULL,
+    image_url VARCHAR(500) NOT NULL,
+    display_order INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_product_images_product FOREIGN KEY (product_id)
+        REFERENCES products(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    INDEX idx_product_images_product_order (product_id, display_order)
+) ENGINE = InnoDB;
+
+-- =========================================================
+-- 6B. VOUCHERS, PROMOTIONS AND FLASH SALE (PHASE 20)
+-- =========================================================
+CREATE TABLE IF NOT EXISTS vouchers (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(30) NOT NULL UNIQUE, name VARCHAR(150) NOT NULL,
+    discount_type VARCHAR(20) NOT NULL, discount_value DECIMAL(15,2) NOT NULL,
+    minimum_order_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+    maximum_discount_amount DECIMAL(15,2) NULL,
+    starts_at DATETIME NOT NULL, ends_at DATETIME NOT NULL,
+    total_usage_limit INT NULL, per_user_usage_limit INT NOT NULL DEFAULT 1,
+    status BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CHECK(discount_type IN('PERCENTAGE','FIXED_AMOUNT')), CHECK(discount_value>0), CHECK(ends_at>starts_at)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS voucher_scopes (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, voucher_id BIGINT NOT NULL,
+    scope_type VARCHAR(20) NOT NULL, target_id BIGINT NULL,
+    FOREIGN KEY(voucher_id) REFERENCES vouchers(id) ON DELETE CASCADE,
+    CHECK(scope_type IN('ORDER','CATEGORY','BRAND','PRODUCT')),
+    INDEX idx_voucher_scopes_lookup(scope_type,target_id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS promotions (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(150) NOT NULL,
+    discount_type VARCHAR(20) NOT NULL, discount_value DECIMAL(15,2) NOT NULL,
+    starts_at DATETIME NOT NULL, ends_at DATETIME NOT NULL,
+    flash_sale BOOLEAN NOT NULL DEFAULT FALSE, status BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CHECK(discount_type IN('PERCENTAGE','FIXED_AMOUNT')), CHECK(discount_value>0), CHECK(ends_at>starts_at)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS promotion_products (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, promotion_id BIGINT NOT NULL, product_id BIGINT NOT NULL,
+    UNIQUE(promotion_id,product_id),
+    FOREIGN KEY(promotion_id) REFERENCES promotions(id) ON DELETE CASCADE,
+    FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE RESTRICT,
+    INDEX idx_promotion_products_product(product_id)
+) ENGINE=InnoDB;
+
+-- =========================================================
+-- 6C. INVENTORY DOCUMENTS
+-- =========================================================
+CREATE TABLE IF NOT EXISTS inventory_documents (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    code VARCHAR(40) NOT NULL,
+    type VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
+    supplier_id BIGINT NULL,
+    invoice_reference VARCHAR(100) NULL,
+    note VARCHAR(1000) NULL,
+    created_by VARCHAR(150) NOT NULL,
+    posted_by VARCHAR(150) NULL,
+    posted_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_inventory_documents_code UNIQUE (code),
+    CONSTRAINT chk_inventory_documents_type CHECK (type IN ('INBOUND', 'OUTBOUND', 'ADJUSTMENT')),
+    CONSTRAINT chk_inventory_documents_status CHECK (status IN ('DRAFT', 'POSTED')),
+    CONSTRAINT fk_inventory_documents_supplier FOREIGN KEY (supplier_id)
+        REFERENCES suppliers(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    INDEX idx_inventory_documents_created (created_at),
+    INDEX idx_inventory_documents_type_status (type, status),
+    INDEX idx_inventory_documents_supplier (supplier_id)
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS inventory_document_items (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    document_id BIGINT NOT NULL,
+    product_id BIGINT NOT NULL,
+    product_name VARCHAR(150) NOT NULL,
+    product_sku VARCHAR(40) NOT NULL,
+    quantity INT NOT NULL,
+    unit_cost DECIMAL(15,2) NULL,
+    quantity_before INT NULL,
+    quantity_change INT NULL,
+    quantity_after INT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_inventory_document_product UNIQUE (document_id, product_id),
+    CONSTRAINT fk_inventory_document_items_document FOREIGN KEY (document_id)
+        REFERENCES inventory_documents(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_inventory_document_items_product FOREIGN KEY (product_id)
+        REFERENCES products(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT chk_inventory_document_items_quantity CHECK (quantity >= 0),
+    CONSTRAINT chk_inventory_document_items_cost CHECK (unit_cost IS NULL OR unit_cost >= 0),
+    INDEX idx_inventory_document_items_product (product_id)
+) ENGINE = InnoDB;
+
+-- =========================================================
+-- 6C. STOCK MOVEMENTS
+-- Immutable inventory ledger. quantity_change is signed.
+-- =========================================================
+CREATE TABLE IF NOT EXISTS stock_movements (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    product_id BIGINT NOT NULL,
+    inventory_document_id BIGINT NULL,
+    inventory_document_item_id BIGINT NULL,
+    product_name VARCHAR(150) NOT NULL,
+    movement_type VARCHAR(20) NOT NULL,
+    quantity_before INT NOT NULL,
+    quantity_change INT NOT NULL,
+    quantity_after INT NOT NULL,
+    reason VARCHAR(500) NOT NULL,
+    reference_type VARCHAR(30) NULL,
+    reference_id VARCHAR(100) NULL,
+    performed_by VARCHAR(150) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT chk_stock_movements_type CHECK (
+        movement_type IN ('INITIAL', 'INBOUND', 'OUTBOUND', 'ADJUSTMENT', 'SALE', 'RETURN')
+    ),
+    CONSTRAINT chk_stock_movements_before CHECK (quantity_before >= 0),
+    CONSTRAINT chk_stock_movements_after CHECK (quantity_after >= 0),
+    CONSTRAINT fk_stock_movements_product FOREIGN KEY (product_id)
+        REFERENCES products (id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_stock_movements_document FOREIGN KEY (inventory_document_id)
+        REFERENCES inventory_documents(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_stock_movements_document_item FOREIGN KEY (inventory_document_item_id)
+        REFERENCES inventory_document_items(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    INDEX idx_stock_movements_product_created (product_id, created_at),
+    INDEX idx_stock_movements_type_created (movement_type, created_at),
+    INDEX idx_stock_movements_reference (reference_type, reference_id),
+    INDEX idx_stock_movements_created (created_at)
+) ENGINE = InnoDB;
+
+-- =========================================================
+-- 7. CARTS
 -- Phase 6: one authenticated user has at most one cart.
 -- =========================================================
 CREATE TABLE IF NOT EXISTS carts (
@@ -121,7 +346,7 @@ CREATE TABLE IF NOT EXISTS carts (
 ) ENGINE = InnoDB;
 
 -- =========================================================
--- 5. CART ITEMS
+-- 8. CART ITEMS
 -- Phase 6: a product appears only once in a cart; quantity is updated in place.
 -- =========================================================
 CREATE TABLE IF NOT EXISTS cart_items (
@@ -149,20 +374,26 @@ CREATE TABLE IF NOT EXISTS cart_items (
 ) ENGINE = InnoDB;
 
 -- =========================================================
--- 6. ORDERS
+-- 9. ORDERS
 -- total_amount is calculated again by the backend during checkout.
 -- The initial payment method is COD.
 -- =========================================================
 CREATE TABLE IF NOT EXISTS orders (
     id BIGINT NOT NULL AUTO_INCREMENT,
     order_code VARCHAR(30) NOT NULL,
+    checkout_token VARCHAR(36) NULL,
     user_id BIGINT NOT NULL,
     receiver_name VARCHAR(100) NOT NULL,
     receiver_phone VARCHAR(20) NOT NULL,
     shipping_address VARCHAR(255) NOT NULL,
     note VARCHAR(500) NULL,
+    subtotal_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+    promotion_discount_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+    voucher_discount_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+    voucher_id BIGINT NULL,
+    voucher_code VARCHAR(30) NULL,
     total_amount DECIMAL(15, 2) NOT NULL,
-    payment_method VARCHAR(30) NOT NULL DEFAULT 'COD',
+    payment_method VARCHAR(20) NOT NULL DEFAULT 'COD',
     payment_status VARCHAR(20) NOT NULL DEFAULT 'UNPAID',
     payment_transaction_code VARCHAR(100) NULL,
     paid_at DATETIME NULL,
@@ -172,13 +403,14 @@ CREATE TABLE IF NOT EXISTS orders (
         ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     CONSTRAINT uk_orders_order_code UNIQUE (order_code),
+    CONSTRAINT uk_orders_checkout_token UNIQUE (checkout_token),
     CONSTRAINT chk_orders_total_amount CHECK (total_amount >= 0),
     CONSTRAINT uk_orders_payment_transaction_code
         UNIQUE (payment_transaction_code),
     CONSTRAINT chk_orders_payment_method
-        CHECK (payment_method IN ('COD', 'VNPAY')),
+        CHECK (payment_method IN ('COD', 'VNPAY', 'BANK_TRANSFER')),
     CONSTRAINT chk_orders_payment_status
-        CHECK (payment_status IN ('UNPAID', 'PAID', 'FAILED', 'REFUNDED')),
+        CHECK (payment_status IN ('UNPAID', 'REPORTED', 'PAID', 'FAILED', 'REFUNDED')),
     CONSTRAINT chk_orders_status
         CHECK (status IN (
             'PENDING', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED'
@@ -188,13 +420,35 @@ CREATE TABLE IF NOT EXISTS orders (
         REFERENCES users (id)
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
+    CONSTRAINT fk_orders_voucher FOREIGN KEY(voucher_id)
+        REFERENCES vouchers(id) ON DELETE SET NULL,
     INDEX idx_orders_user_id_created_at (user_id, created_at),
     INDEX idx_orders_status (status),
     INDEX idx_orders_created_at (created_at)
 ) ENGINE = InnoDB;
 
 -- =========================================================
--- 7. ORDER DETAILS
+-- Bank transfer snapshots and manual reconciliation.
+CREATE TABLE IF NOT EXISTS bank_transfer_payments (
+ id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ order_id BIGINT NOT NULL,
+ bank_bin VARCHAR(6) NOT NULL,
+ bank_name VARCHAR(100) NOT NULL,
+ account_number VARCHAR(19) NOT NULL,
+ account_name VARCHAR(100) NOT NULL,
+ reference VARCHAR(25) NOT NULL,
+ amount DECIMAL(15,2) NOT NULL,
+ reported_at DATETIME NULL,
+ confirmed_by VARCHAR(150) NULL,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ CONSTRAINT uk_bank_transfer_order UNIQUE(order_id),
+ CONSTRAINT uk_bank_transfer_reference UNIQUE(reference),
+ CONSTRAINT fk_bank_transfer_order FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE RESTRICT,
+ CONSTRAINT chk_bank_transfer_amount CHECK(amount > 0 AND amount < 500000000 AND amount = FLOOR(amount))
+) ENGINE=InnoDB;
+
+-- 10. ORDER DETAILS
 -- product_name and price are snapshots at checkout time.
 -- They must not be read from the current product price later.
 -- =========================================================
@@ -205,6 +459,7 @@ CREATE TABLE IF NOT EXISTS order_details (
     product_name VARCHAR(150) NOT NULL,
     price DECIMAL(15, 2) NOT NULL,
     quantity INT NOT NULL,
+    discount_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
     subtotal DECIMAL(15, 2) NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT uk_order_details_order_product UNIQUE (order_id, product_id),
@@ -224,8 +479,20 @@ CREATE TABLE IF NOT EXISTS order_details (
     INDEX idx_order_details_product_id (product_id)
 ) ENGINE = InnoDB;
 
+CREATE TABLE IF NOT EXISTS voucher_usages (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY, voucher_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL, order_id BIGINT NOT NULL UNIQUE,
+    discount_amount DECIMAL(15,2) NOT NULL, active BOOLEAN NOT NULL DEFAULT TRUE,
+    released_at DATETIME NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY(voucher_id) REFERENCES vouchers(id) ON DELETE RESTRICT,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE RESTRICT,
+    FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE RESTRICT,
+    INDEX idx_voucher_usage_limits(voucher_id,user_id,active)
+) ENGINE=InnoDB;
+
 -- =========================================================
--- 8. REVIEWS
+-- 11. REVIEWS
 -- The Service layer must verify that the user bought the product in a
 -- COMPLETED order before accepting a review.
 -- =========================================================
@@ -235,11 +502,18 @@ CREATE TABLE IF NOT EXISTS reviews (
     product_id BIGINT NOT NULL,
     rating TINYINT NOT NULL,
     comment VARCHAR(1000) NULL,
+    order_detail_id BIGINT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    moderation_note VARCHAR(500) NULL,
+    moderated_at DATETIME NULL,
+    moderated_by BIGINT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    CONSTRAINT uk_reviews_user_product UNIQUE (user_id, product_id),
+    CONSTRAINT uk_reviews_order_detail UNIQUE (order_detail_id),
+    CONSTRAINT fk_reviews_order_detail FOREIGN KEY (order_detail_id) REFERENCES order_details(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_reviews_moderated_by FOREIGN KEY (moderated_by) REFERENCES users(id) ON DELETE SET NULL,
     CONSTRAINT chk_reviews_rating CHECK (rating BETWEEN 1 AND 5),
     CONSTRAINT fk_reviews_user
         FOREIGN KEY (user_id)
@@ -251,7 +525,116 @@ CREATE TABLE IF NOT EXISTS reviews (
         REFERENCES products (id)
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
-    INDEX idx_reviews_product_id_created_at (product_id, created_at)
+    INDEX idx_reviews_product_id_created_at (product_id, created_at),
+    INDEX idx_reviews_user_id (user_id),
+    INDEX idx_reviews_status_created (status, created_at)
+) ENGINE = InnoDB;
+
+CREATE TABLE IF NOT EXISTS product_review_images (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    review_id BIGINT NOT NULL,
+    storage_key VARCHAR(50) NOT NULL,
+    CONSTRAINT uk_review_images_storage_key UNIQUE (storage_key),
+    CONSTRAINT fk_review_images_review FOREIGN KEY (review_id) REFERENCES reviews(id) ON DELETE RESTRICT,
+    INDEX idx_review_images_review (review_id)
+) ENGINE = InnoDB;
+
+-- =========================================================
+-- 12. WISHLISTS
+-- One product can appear only once in each customer's wishlist.
+-- =========================================================
+CREATE TABLE IF NOT EXISTS wishlists (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    product_id BIGINT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_wishlists_user_product UNIQUE (user_id, product_id),
+    CONSTRAINT fk_wishlists_user
+        FOREIGN KEY (user_id) REFERENCES users (id)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_wishlists_product
+        FOREIGN KEY (product_id) REFERENCES products (id)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    INDEX idx_wishlists_user_created_at (user_id, created_at)
+) ENGINE = InnoDB;
+
+-- =========================================================
+-- 13. PRODUCT VIEW HISTORIES
+-- updated_at is the latest view time; view_count records repeat interest.
+-- =========================================================
+CREATE TABLE IF NOT EXISTS product_view_histories (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    product_id BIGINT NOT NULL,
+    view_count INT NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_product_view_histories_user_product UNIQUE (user_id, product_id),
+    CONSTRAINT chk_product_view_histories_count CHECK (view_count > 0),
+    CONSTRAINT fk_product_view_histories_user
+        FOREIGN KEY (user_id) REFERENCES users (id)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_product_view_histories_product
+        FOREIGN KEY (product_id) REFERENCES products (id)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    INDEX idx_product_view_histories_user_updated_at (user_id, updated_at)
+) ENGINE = InnoDB;
+
+-- =========================================================
+-- 14. CHATBOT FAQ
+-- Official store answers are matched before the optional AI provider.
+-- =========================================================
+CREATE TABLE IF NOT EXISTS chatbot_faqs (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    question VARCHAR(200) NOT NULL,
+    answer VARCHAR(1500) NOT NULL,
+    keywords VARCHAR(500) NOT NULL,
+    display_order INT NOT NULL DEFAULT 0,
+    status BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by VARCHAR(150) NOT NULL DEFAULT 'SYSTEM',
+    updated_by VARCHAR(150) NOT NULL DEFAULT 'SYSTEM',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_chatbot_faqs_question UNIQUE (question),
+    CONSTRAINT chk_chatbot_faqs_display_order CHECK (display_order >= 0),
+    INDEX idx_chatbot_faqs_status_order (status, display_order, id)
+) ENGINE = InnoDB;
+
+-- =========================================================
+-- 15. CHATBOT INTERACTIONS
+-- Stores only a redacted question and operational metrics; no user/session id,
+-- API key or full AI answer is persisted.
+-- =========================================================
+CREATE TABLE IF NOT EXISTS chatbot_interactions (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    question VARCHAR(300) NOT NULL,
+    response_source VARCHAR(30) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    product_count INT NOT NULL DEFAULT 0,
+    response_time_ms BIGINT NOT NULL DEFAULT 0,
+    matched_faq_id BIGINT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT chk_chatbot_interactions_source CHECK (
+        response_source IN ('MANAGED_FAQ', 'AI', 'RULE_BASED', 'AI_FALLBACK')
+    ),
+    CONSTRAINT chk_chatbot_interactions_status CHECK (
+        status IN ('RESOLVED', 'NEEDS_REVIEW')
+    ),
+    CONSTRAINT chk_chatbot_interactions_product_count CHECK (product_count >= 0),
+    CONSTRAINT chk_chatbot_interactions_response_time CHECK (response_time_ms >= 0),
+    CONSTRAINT fk_chatbot_interactions_faq FOREIGN KEY (matched_faq_id)
+        REFERENCES chatbot_faqs(id) ON UPDATE CASCADE ON DELETE SET NULL,
+    INDEX idx_chatbot_interactions_created (created_at),
+    INDEX idx_chatbot_interactions_source_created (response_source, created_at),
+    INDEX idx_chatbot_interactions_status_created (status, created_at),
+    INDEX idx_chatbot_interactions_faq (matched_faq_id)
 ) ENGINE = InnoDB;
 
 -- =========================================================
@@ -268,22 +651,57 @@ VALUES
     (3, 'Thực phẩm sạch', 'Nhóm thực phẩm sạch được chọn lọc', '/img/best-product-1.jpg', TRUE);
 
 INSERT IGNORE INTO suppliers
-    (id, name, phone, email, address, status)
+    (id, code, name, phone, email, address, status)
 VALUES
-    (1, 'Nông trại Xanh Việt', '0901000001', 'xanhviet@example.com', 'Đà Lạt, Lâm Đồng', TRUE),
-    (2, 'Hợp tác xã Miền Tây', '0901000002', 'mientay@example.com', 'Cần Thơ', TRUE),
-    (3, 'Fresh Food Việt Nam', '0901000003', 'freshfood@example.com', 'TP. Hồ Chí Minh', TRUE);
+    (1, 'NCC-000001', 'Nông trại Xanh Việt', '0901000001', 'xanhviet@example.com', 'Đà Lạt, Lâm Đồng', TRUE),
+    (2, 'NCC-000002', 'Hợp tác xã Miền Tây', '0901000002', 'mientay@example.com', 'Cần Thơ', TRUE),
+    (3, 'NCC-000003', 'Fresh Food Việt Nam', '0901000003', 'freshfood@example.com', 'TP. Hồ Chí Minh', TRUE);
+
+INSERT IGNORE INTO brands (id, name, description, status) VALUES
+    (1, 'Vegetable Shop', 'Thương hiệu sản phẩm tuyển chọn của cửa hàng.', TRUE),
+    (2, 'VietGAP', 'Nhóm sản phẩm theo tiêu chuẩn VietGAP.', TRUE);
 
 INSERT IGNORE INTO products
-    (id, name, description, price, quantity, image, category_id, supplier_id, status)
+    (id, sku, name, description, price, quantity, low_stock_threshold, image, category_id, brand_id, unit, origin, supplier_id, status)
 VALUES
-    (1, 'Bông cải xanh', 'Bông cải xanh tươi, phù hợp cho bữa ăn gia đình.', 35000.00, 50, '/img/vegetable-item-1.jpg', 1, 1, TRUE),
-    (2, 'Ớt chuông', 'Ớt chuông giòn ngọt, giàu vitamin.', 45000.00, 40, '/img/vegetable-item-2.jpg', 1, 1, TRUE),
-    (3, 'Chuối', 'Chuối chín tự nhiên, không sử dụng chất bảo quản.', 30000.00, 60, '/img/fruite-item-3.jpg', 2, 2, TRUE),
-    (4, 'Cam', 'Cam tươi mọng nước, vị chua ngọt tự nhiên.', 55000.00, 45, '/img/fruite-item-4.jpg', 2, 2, TRUE),
-    (5, 'Táo', 'Táo giòn, phù hợp dùng trực tiếp hoặc làm nước ép.', 75000.00, 35, '/img/fruite-item-6.jpg', 2, 3, TRUE);
+    (1, 'SP-000001', 'Bông cải xanh', 'Bông cải xanh tươi, phù hợp cho bữa ăn gia đình.', 35000.00, 50, 10, '/img/vegetable-item-1.jpg', 1, 2, 'KILOGRAM', 'Đà Lạt', 1, TRUE),
+    (2, 'SP-000002', 'Ớt chuông', 'Ớt chuông giòn ngọt, giàu vitamin.', 45000.00, 40, 10, '/img/vegetable-item-2.jpg', 1, 2, 'KILOGRAM', 'Đà Lạt', 1, TRUE),
+    (3, 'SP-000003', 'Chuối', 'Chuối chín tự nhiên, không sử dụng chất bảo quản.', 30000.00, 60, 10, '/img/fruite-item-3.jpg', 2, 1, 'KILOGRAM', 'Việt Nam', 2, TRUE),
+    (4, 'SP-000004', 'Cam', 'Cam tươi mọng nước, vị chua ngọt tự nhiên.', 55000.00, 45, 10, '/img/fruite-item-4.jpg', 2, 1, 'KILOGRAM', 'Miền Tây', 2, TRUE),
+    (5, 'SP-000005', 'Táo', 'Táo giòn, phù hợp dùng trực tiếp hoặc làm nước ép.', 75000.00, 35, 10, '/img/fruite-item-6.jpg', 2, 1, 'KILOGRAM', 'Việt Nam', 3, TRUE);
+
+INSERT IGNORE INTO chatbot_faqs
+    (question, answer, keywords, display_order, status, created_by, updated_by)
+VALUES
+    ('Phí giao hàng được tính như thế nào?',
+     'Phí giao hàng được hiển thị rõ ở bước thanh toán và phụ thuộc vào địa chỉ nhận hàng. Bạn hãy mở giỏ hàng, chọn Thanh toán và nhập địa chỉ để xem thông tin áp dụng.',
+     'phí giao hàng, phí ship, tiền ship, vận chuyển', 10, TRUE, 'SYSTEM', 'SYSTEM'),
+    ('Cửa hàng hỗ trợ những phương thức thanh toán nào?',
+     'Cửa hàng hỗ trợ thanh toán khi nhận hàng (COD). Các phương thức trực tuyến chỉ xuất hiện khi đã được quản trị viên cấu hình và kích hoạt.',
+     'thanh toán, COD, trả tiền, phương thức thanh toán', 20, TRUE, 'SYSTEM', 'SYSTEM'),
+    ('Tôi xem trạng thái đơn hàng ở đâu?',
+     'Sau khi đăng nhập, bạn mở Tiện ích và chọn Đơn hàng của tôi để xem mã đơn, trạng thái xử lý và chi tiết từng sản phẩm.',
+     'trạng thái đơn, theo dõi đơn, đơn hàng của tôi, kiểm tra đơn', 30, TRUE, 'SYSTEM', 'SYSTEM'),
+    ('Tôi quên mật khẩu thì phải làm sao?',
+     'Tại trang đăng nhập, chọn Quên mật khẩu, nhập email đã đăng ký và làm theo liên kết được gửi đến email của bạn.',
+     'quên mật khẩu, đặt lại mật khẩu, không đăng nhập được', 40, TRUE, 'SYSTEM', 'SYSTEM'),
+    ('Tôi liên hệ cửa hàng bằng cách nào?',
+     'Bạn có thể mở trang Liên hệ trên thanh menu và gửi nội dung cần hỗ trợ. Cửa hàng sẽ phản hồi qua thông tin liên hệ bạn cung cấp.',
+     'liên hệ, hỗ trợ, hotline, email cửa hàng', 50, TRUE, 'SYSTEM', 'SYSTEM');
+
+INSERT INTO stock_movements
+    (product_id, product_name, movement_type, quantity_before, quantity_change,
+     quantity_after, reason, reference_type, reference_id, performed_by)
+SELECT p.id, p.name, 'INITIAL', 0, p.quantity, p.quantity,
+       'Khởi tạo tồn kho từ dữ liệu mẫu', 'PRODUCT', CAST(p.id AS CHAR), 'SYSTEM'
+FROM products p
+WHERE NOT EXISTS (
+    SELECT 1 FROM stock_movements sm WHERE sm.product_id = p.id
+);
 
 -- Useful verification queries after importing this file:
 -- SHOW TABLES;
 -- SELECT * FROM categories;
 -- SELECT * FROM products;
+-- SELECT * FROM stock_movements ORDER BY created_at DESC;
+-- SELECT * FROM chatbot_faqs ORDER BY display_order, id;

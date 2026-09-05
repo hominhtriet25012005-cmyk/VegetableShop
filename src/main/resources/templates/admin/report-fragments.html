@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="salesTable(rows, heading)" class="table-responsive">
+    <table class="table align-middle mb-0">
+        <thead><tr><th th:text="${heading}">Nhóm</th><th class="text-end">Số lượng bán</th><th class="text-end">Doanh thu</th></tr></thead>
+        <tbody><tr th:each="row:${rows}"><td class="fw-semibold" th:text="${row.label}">Tên</td><td class="text-end" th:text="${row.units}">0</td><td class="text-end" th:text="${#numbers.formatDecimal(row.revenue,0,'POINT',0,'COMMA')+' ₫'}">0 ₫</td></tr><tr th:if="${#lists.isEmpty(rows)}"><td colspan="3" class="text-center text-muted py-4">Chưa có dữ liệu.</td></tr></tbody>
+    </table>
+</div>
+<div th:fragment="revenueTable(rows, heading)">
+    <h3 class="h6" th:text="${heading}">Doanh thu</h3>
+    <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Kỳ</th><th class="text-end">Doanh thu</th></tr></thead><tbody><tr th:each="row:${rows}"><td th:text="${row.label}">Kỳ</td><td class="text-end" th:text="${#numbers.formatDecimal(row.revenue,0,'POINT',0,'COMMA')+' ₫'}">0 ₫</td></tr><tr th:if="${#lists.isEmpty(rows)}"><td colspan="2" class="text-center text-muted py-4">Chưa có dữ liệu.</td></tr></tbody></table></div>
+</div>
+</body>
+</html>

@@ -18,20 +18,20 @@ import java.util.Optional;
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
     @Override
-    @EntityGraph(attributePaths = {"category", "supplier"})
+    @EntityGraph(attributePaths = {"category", "supplier", "brand"})
     Page<Product> findAll(Pageable pageable);
 
-    @EntityGraph(attributePaths = {"category", "supplier"})
+    @EntityGraph(attributePaths = {"category", "supplier", "brand"})
     Page<Product> findByNameContainingIgnoreCase(String keyword, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"category", "supplier"})
+    @EntityGraph(attributePaths = {"category", "brand"})
     List<Product> findByStatusTrueOrderByCreatedAtDesc();
 
     @Override
-    @EntityGraph(attributePaths = {"category", "supplier"})
+    @EntityGraph(attributePaths = {"category", "supplier", "brand"})
     Page<Product> findAll(Specification<Product> specification, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"category", "supplier"})
+    @EntityGraph(attributePaths = {"category", "brand", "additionalImages"})
     Optional<Product> findByIdAndStatusTrueAndCategoryStatusTrue(Long id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -46,30 +46,62 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @Query("select p from Product p where p.id = :id")
     Optional<Product> findByIdForUpdate(@Param("id") Long id);
 
-    @EntityGraph(attributePaths = {"category", "supplier"})
+    @EntityGraph(attributePaths = {"category", "brand"})
     List<Product> findTop3ByStatusTrueAndCategoryStatusTrueOrderByCreatedAtDesc();
 
-    @EntityGraph(attributePaths = {"category", "supplier"})
+    @EntityGraph(attributePaths = {"category", "brand"})
     List<Product> findTop8ByStatusTrueAndCategoryStatusTrueOrderByCreatedAtDesc();
 
-    @EntityGraph(attributePaths = {"category", "supplier"})
+    @EntityGraph(attributePaths = {"category", "brand"})
+    List<Product> findByStatusTrueAndCategoryStatusTrue();
+
+    @EntityGraph(attributePaths = {"category", "brand"})
     List<Product> findTop8ByStatusTrueAndCategoryStatusTrueAndCategoryIdOrderByCreatedAtDesc(Long categoryId);
 
-    @EntityGraph(attributePaths = {"category", "supplier"})
+    @EntityGraph(attributePaths = {"category", "brand"})
     List<Product> findTop4ByStatusTrueAndCategoryStatusTrueAndCategoryIdAndIdNotOrderByCreatedAtDesc(
         Long categoryId,
         Long productId
     );
 
-    @EntityGraph(attributePaths = {"category", "supplier"})
-    List<Product> findTop4ByStatusTrueAndCategoryStatusTrueAndSupplierIdAndIdNotOrderByCreatedAtDesc(
-        Long supplierId,
+    @EntityGraph(attributePaths = {"category", "brand"})
+    List<Product> findTop4ByStatusTrueAndCategoryStatusTrueAndBrandIdAndIdNotOrderByCreatedAtDesc(
+        Long brandId,
         Long productId
     );
 
-    @EntityGraph(attributePaths = {"category", "supplier"})
+    @EntityGraph(attributePaths = {"category", "brand"})
     List<Product> findByIdInAndStatusTrueAndCategoryStatusTrue(List<Long> ids);
 
-    @EntityGraph(attributePaths = "category")
-    List<Product> findTop5ByStatusTrueAndQuantityLessThanEqualOrderByQuantityAsc(Integer quantity);
+    @EntityGraph(attributePaths = {"category", "brand"})
+    @Query("""
+        select p from Product p
+        where p.status = true
+          and p.category.status = true
+          and p.quantity > :minimumQuantity
+        order by p.createdAt desc, p.id desc
+        """)
+    List<Product> findChatbotCandidates(
+        @Param("minimumQuantity") int minimumQuantity,
+        Pageable pageable
+    );
+
+    @EntityGraph(attributePaths = {"category", "brand"})
+    @Query("""
+        select p from Product p
+        where p.status = true
+          and p.quantity > 0
+          and p.quantity <= p.lowStockThreshold
+        order by p.quantity asc, p.name asc
+        """)
+    List<Product> findLowStockProducts(Pageable pageable);
+
+    @EntityGraph(attributePaths = {"category", "brand"})
+    List<Product> findAllByOrderByQuantityAscNameAsc();
+
+    boolean existsBySkuIgnoreCase(String sku);
+
+    boolean existsBySkuIgnoreCaseAndIdNot(String sku, Long id);
+
+    List<Product> findAllByOrderByNameAsc();
 }

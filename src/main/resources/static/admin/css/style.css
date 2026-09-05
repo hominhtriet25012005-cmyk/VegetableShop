@@ -131,6 +131,15 @@ a {
   padding: 1.1rem 1rem;
 }
 
+.sidebar-section-label {
+  padding: 18px 14px 6px;
+  color: var(--admin-sidebar-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .sidebar-nav .nav-link {
   display: flex;
   align-items: center;
@@ -686,6 +695,68 @@ html[data-theme="dark"] .profile-button .avatar-sm {
   background: #f8fbff;
 }
 
+.chatbot-chart {
+  height: 280px;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.55rem;
+  overflow-x: auto;
+  padding: 1rem 0.25rem 0;
+}
+
+.chatbot-chart-column {
+  height: 100%;
+  min-width: 42px;
+  flex: 1 0 42px;
+  display: grid;
+  grid-template-rows: 24px 1fr 22px;
+  align-items: end;
+  gap: 0.35rem;
+  color: var(--admin-muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.chatbot-chart-bar {
+  width: 100%;
+  min-height: 4px;
+  display: block;
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(180deg, var(--admin-primary), var(--admin-success));
+}
+
+.chatbot-privacy-list {
+  display: grid;
+  gap: 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.chatbot-privacy-list li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.chatbot-privacy-list i {
+  color: var(--admin-success);
+  font-size: 1.1rem;
+}
+
+.chatbot-question-cell {
+  min-width: 280px !important;
+  max-width: 540px;
+  white-space: normal;
+}
+
+.chatbot-answer-preview {
+  max-width: 620px;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
 .badge {
   border-radius: 8px;
   padding: 0.45rem 0.65rem;
@@ -1007,6 +1078,7 @@ html[data-theme="dark"] .profile-button .avatar-sm {
 
   body.sidebar-mini .brand-copy,
   body.sidebar-mini .nav-text,
+  body.sidebar-mini .sidebar-section-label,
   body.sidebar-mini .sidebar-footer-text {
     width: 0;
     opacity: 0;

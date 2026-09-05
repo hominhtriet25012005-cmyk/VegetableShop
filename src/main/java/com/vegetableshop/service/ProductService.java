@@ -14,8 +14,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -24,6 +31,8 @@ import java.util.stream.Collectors;
 public class ProductService {
 
     private final ProductRepository productRepository;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private PromotionPricingService promotionPricingService;
 
     public ProductService(ProductRepository productRepository) {
         this.productRepository = productRepository;
@@ -31,7 +40,7 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public List<Product> findAllActiveProducts() {
-        return productRepository.findByStatusTrueOrderByCreatedAtDesc();
+        return decorate(productRepository.findByStatusTrueOrderByCreatedAtDesc());
     }
 
     @Transactional(readOnly = true)
@@ -42,59 +51,111 @@ public class ProductService {
             filter.getSize(),
             resolveSort(filter.getSort())
         );
-        return productRepository.findAll(ProductSpecifications.withFilters(filter), pageRequest);
+        Page<Product> page=productRepository.findAll(ProductSpecifications.withFilters(filter), pageRequest);
+        decorate(page.getContent()); return page;
     }
 
     @Transactional(readOnly = true)
     public Product findActiveProduct(Long id) {
-        return productRepository.findByIdAndStatusTrueAndCategoryStatusTrue(id)
+        Product product=productRepository.findByIdAndStatusTrueAndCategoryStatusTrue(id)
             .orElseThrow(() -> new ProductNotFoundException(id));
+        decorate(List.of(product)); return product;
     }
 
     @Transactional(readOnly = true)
     public List<Product> findNewestProducts() {
-        return productRepository.findTop3ByStatusTrueAndCategoryStatusTrueOrderByCreatedAtDesc();
+        return decorate(productRepository.findTop3ByStatusTrueAndCategoryStatusTrueOrderByCreatedAtDesc());
     }
 
     @Transactional(readOnly = true)
     public List<Product> findHomepageProducts() {
-        return productRepository.findTop8ByStatusTrueAndCategoryStatusTrueOrderByCreatedAtDesc();
+        return decorate(productRepository.findTop8ByStatusTrueAndCategoryStatusTrueOrderByCreatedAtDesc());
     }
 
     /**
-     * Loads the default eight newest products plus up to eight products for
-     * every active category. The result is de-duplicated while preserving its
-     * order so the homepage can filter locally without another page load.
+     * Samples up to eight products per active category from the whole catalog.
+     * Categories and their products are shuffled per request, then interleaved
+     * so the initial eight cards do not all come from the newest category.
+     * Category tabs reuse this bounded, de-duplicated catalog locally.
      */
     @Transactional(readOnly = true)
     public List<Product> findHomepageCatalog(List<Category> categories) {
-        Map<Long, Product> productsById = new LinkedHashMap<>();
-        findHomepageProducts().forEach(product -> productsById.put(product.getId(), product));
+        if (categories.isEmpty()) {
+            return List.of();
+        }
+        return decorate(mixHomepageCatalog(productRepository.findByStatusTrueAndCategoryStatusTrue(),
+            categories, ThreadLocalRandom.current()));
+    }
 
-        categories.forEach(category -> productRepository
-            .findTop8ByStatusTrueAndCategoryStatusTrueAndCategoryIdOrderByCreatedAtDesc(category.getId())
-            .forEach(product -> productsById.putIfAbsent(product.getId(), product)));
+    static List<Product> mixHomepageCatalog(List<Product> candidates, List<Category> categories,
+                                           Random random) {
+        Map<Long, List<Product>> byCategory = new LinkedHashMap<>();
+        categories.stream().filter(Category::isStatus).forEach(category ->
+            byCategory.putIfAbsent(category.getId(), new ArrayList<>()));
+        Set<Long> seen = new HashSet<>();
+        for (Product product : candidates) {
+            if (!product.isStatus() || product.getCategory() == null
+                || !product.getCategory().isStatus()) {
+                continue;
+            }
+            List<Product> group = byCategory.get(product.getCategory().getId());
+            if (group != null && seen.add(product.getId())) {
+                group.add(product);
+            }
+        }
 
-        return List.copyOf(productsById.values());
+        List<List<Product>> groups = new ArrayList<>();
+        for (List<Product> group : byCategory.values()) {
+            if (!group.isEmpty()) {
+                Collections.shuffle(group, random);
+                groups.add(group.subList(0, Math.min(8, group.size())));
+            }
+        }
+        Collections.shuffle(groups, random);
+
+        List<Product> result = new ArrayList<>();
+        for (int position = 0; position < 8; position++) {
+            for (List<Product> group : groups) {
+                if (position < group.size()) {
+                    result.add(group.get(position));
+                }
+            }
+        }
+        return List.copyOf(result);
     }
 
     @Transactional(readOnly = true)
     public List<Product> findRelatedProducts(Product product) {
-        return productRepository
+        return decorate(productRepository
             .findTop4ByStatusTrueAndCategoryStatusTrueAndCategoryIdAndIdNotOrderByCreatedAtDesc(
                 product.getCategory().getId(),
                 product.getId()
-            );
+            ));
     }
 
     @Transactional(readOnly = true)
-    public List<Product> findSameSupplierProducts(Product product) {
-        if (product.getSupplier() == null || !product.getSupplier().isStatus()) {
+    public List<Product> findSameBrandProducts(Product product) {
+        if (product.getBrand() == null || !product.getBrand().isStatus()) {
             return List.of();
         }
-        return productRepository
-            .findTop4ByStatusTrueAndCategoryStatusTrueAndSupplierIdAndIdNotOrderByCreatedAtDesc(
-                product.getSupplier().getId(), product.getId());
+        return decorate(productRepository
+            .findTop4ByStatusTrueAndCategoryStatusTrueAndBrandIdAndIdNotOrderByCreatedAtDesc(
+                product.getBrand().getId(), product.getId()));
+    }
+
+    public List<String> galleryImages(Product product) {
+        List<String> images = new java.util.ArrayList<>();
+        if (product.getImage() != null && !product.getImage().isBlank()) {
+            images.add(product.getImage().trim());
+        }
+        product.getAdditionalImages().stream()
+            .map(image -> image.getImageUrl())
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(url -> !url.isEmpty())
+            .filter(url -> !images.contains(url))
+            .forEach(images::add);
+        return images.isEmpty() ? List.of("/img/hero-img.jpg") : List.copyOf(images);
     }
 
     @Transactional(readOnly = true)
@@ -106,7 +167,12 @@ public class ProductService {
             .findByIdInAndStatusTrueAndCategoryStatusTrue(ids)
             .stream()
             .collect(Collectors.toMap(Product::getId, Function.identity()));
-        return ids.stream().map(products::get).filter(product -> product != null).toList();
+        return decorate(ids.stream().map(products::get).filter(product -> product != null).toList());
+    }
+
+    private <T extends List<Product>> T decorate(T products) {
+        if (promotionPricingService != null) promotionPricingService.decorate(products);
+        return products;
     }
 
     private Sort resolveSort(String sort) {

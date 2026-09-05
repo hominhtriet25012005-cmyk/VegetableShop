@@ -34,3 +34,24 @@ SET supplier_id = CASE
     ELSE supplier_id
 END
 WHERE supplier_id IS NULL;
+
+-- Phase 21C: official FAQ answers are checked before the optional AI provider.
+-- INSERT IGNORE keeps administrator edits intact on later application starts.
+INSERT IGNORE INTO chatbot_faqs
+    (question, answer, keywords, display_order, status, created_by, updated_by, created_at, updated_at)
+VALUES
+    ('Phí giao hàng được tính như thế nào?',
+     'Phí giao hàng được hiển thị rõ ở bước thanh toán và phụ thuộc vào địa chỉ nhận hàng. Bạn hãy mở giỏ hàng, chọn Thanh toán và nhập địa chỉ để xem thông tin áp dụng.',
+     'phí giao hàng, phí ship, tiền ship, vận chuyển', 10, TRUE, 'SYSTEM', 'SYSTEM', NOW(), NOW()),
+    ('Cửa hàng hỗ trợ những phương thức thanh toán nào?',
+     'Cửa hàng hỗ trợ thanh toán khi nhận hàng (COD). Các phương thức trực tuyến chỉ xuất hiện khi đã được quản trị viên cấu hình và kích hoạt.',
+     'thanh toán, COD, trả tiền, phương thức thanh toán', 20, TRUE, 'SYSTEM', 'SYSTEM', NOW(), NOW()),
+    ('Tôi xem trạng thái đơn hàng ở đâu?',
+     'Sau khi đăng nhập, bạn mở Tiện ích và chọn Đơn hàng của tôi để xem mã đơn, trạng thái xử lý và chi tiết từng sản phẩm.',
+     'trạng thái đơn, theo dõi đơn, đơn hàng của tôi, kiểm tra đơn', 30, TRUE, 'SYSTEM', 'SYSTEM', NOW(), NOW()),
+    ('Tôi quên mật khẩu thì phải làm sao?',
+     'Tại trang đăng nhập, chọn Quên mật khẩu, nhập email đã đăng ký và làm theo liên kết được gửi đến email của bạn.',
+     'quên mật khẩu, đặt lại mật khẩu, không đăng nhập được', 40, TRUE, 'SYSTEM', 'SYSTEM', NOW(), NOW()),
+    ('Tôi liên hệ cửa hàng bằng cách nào?',
+     'Bạn có thể mở trang Liên hệ trên thanh menu và gửi nội dung cần hỗ trợ. Cửa hàng sẽ phản hồi qua thông tin liên hệ bạn cung cấp.',
+     'liên hệ, hỗ trợ, hotline, email cửa hàng', 50, TRUE, 'SYSTEM', 'SYSTEM', NOW(), NOW());

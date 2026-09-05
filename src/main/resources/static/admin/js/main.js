@@ -104,6 +104,83 @@
       });
     }
 
+    function initFlashMessages() {
+      var messages = document.querySelectorAll("[data-admin-flash]");
+
+      if (typeof window.Swal === "undefined") {
+        return;
+      }
+
+      Array.prototype.forEach.call(messages, function (message) {
+        window.Swal.fire({
+          toast: true,
+          position: "top-end",
+          icon: message.getAttribute("data-admin-flash") === "success" ? "success" : "error",
+          title: message.textContent.trim(),
+          showConfirmButton: false,
+          timer: 3500,
+          timerProgressBar: true
+        });
+        message.remove();
+      });
+    }
+
+    function initConfirmations() {
+      var legacyButtons = document.querySelectorAll("button[onclick*='confirm']");
+      Array.prototype.forEach.call(legacyButtons, function (button) {
+        if (button.form) {
+          button.removeAttribute("onclick");
+          button.form.setAttribute("data-confirm", "");
+        }
+      });
+
+      var toggleForms = document.querySelectorAll("form[action$='/toggle']");
+      Array.prototype.forEach.call(toggleForms, function (form) {
+        form.setAttribute("data-confirm", "");
+      });
+
+      var forms = document.querySelectorAll("form[data-confirm]");
+
+      Array.prototype.forEach.call(forms, function (form) {
+        form.addEventListener("submit", function (event) {
+          if (form.dataset.confirmed === "true") {
+            return;
+          }
+
+          event.preventDefault();
+          var status = form.querySelector("select[name='status']");
+          var isCancellation = status && status.value === "CANCELLED";
+          var title = isCancellation ? "Hủy đơn hàng?" : (form.dataset.confirmTitle || "Xác nhận thao tác?");
+          var message = isCancellation
+            ? "Tồn kho của đơn sẽ được hoàn lại. Thao tác này không thể hoàn tác."
+            : (form.dataset.confirmMessage || "Bạn có chắc chắn muốn tiếp tục?");
+
+          if (typeof window.Swal === "undefined") {
+            if (window.confirm(message)) {
+              form.dataset.confirmed = "true";
+              form.requestSubmit();
+            }
+            return;
+          }
+
+          window.Swal.fire({
+            icon: "warning",
+            title: title,
+            text: message,
+            showCancelButton: true,
+            confirmButtonText: form.dataset.confirmButton || "Xác nhận",
+            cancelButtonText: "Quay lại",
+            confirmButtonColor: "#dc3545"
+          }).then(function (result) {
+            if (result.isConfirmed) {
+              form.dataset.confirmed = "true";
+              form.requestSubmit();
+            }
+          });
+        });
+      });
+    }
+
     function updateThemeControls(theme) {
       var nextTheme = theme === "dark" ? "light" : "dark";
       var label = "Switch to " + nextTheme + " mode";
@@ -144,6 +221,8 @@
     initValidation();
     initTableSearch();
     initThemeToggle();
+    initFlashMessages();
+    initConfirmations();
 
     // Initialize user profile values in UI. Provide a window.adminHMDUser object to override defaults.
     function initUserProfile() {

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,11 +8,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&family=Raleway:wght@600;700&display=swap" rel="stylesheet">
+    <link href="https://use.fontawesome.com/releases/v5.15.4/css/all.css" rel="stylesheet">
     <link th:href="@{/css/bootstrap.min.css}" href="/css/bootstrap.min.css" rel="stylesheet">
     <link th:href="@{/css/style.css}" href="/css/style.css" rel="stylesheet">
 </head>
 <body class="bg-light">
-<main class="container py-5">
+<div th:replace="~{fragments/public-shell :: header('register')}"></div>
+
+<main class="container pb-5" style="padding-top: 180px;">
     <div class="row justify-content-center">
         <div class="col-md-9 col-lg-7">
             <div class="bg-white rounded shadow-sm p-4 p-md-5">
@@ -25,6 +29,9 @@
                 </div>
 
                 <form th:action="@{/register}" th:object="${registerRequest}" method="post" novalidate>
+                    <div th:if="${#fields.hasGlobalErrors()}" class="alert alert-danger">
+                        <div th:each="error : ${#fields.globalErrors()}" th:text="${error}">CAPTCHA không hợp lệ</div>
+                    </div>
                     <div class="mb-3">
                         <label for="fullName" class="form-label">Họ và tên <span class="text-danger">*</span></label>
                         <input id="fullName" type="text" th:field="*{fullName}" class="form-control py-3"
@@ -67,6 +74,16 @@
                                   th:classappend="${#fields.hasErrors('address')} ? ' is-invalid'" maxlength="255"></textarea>
                         <div class="invalid-feedback" th:errors="*{address}">Lỗi địa chỉ</div>
                     </div>
+                    <div class="mb-4">
+                        <label for="captchaAnswer" class="form-label">
+                            Xác minh: <strong th:text="${captchaQuestion}">3 + 4 = ?</strong>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <input id="captchaAnswer" name="captchaAnswer" type="text" inputmode="numeric"
+                               class="form-control py-3" autocomplete="off" maxlength="3" required
+                               aria-describedby="captchaHelp">
+                        <div id="captchaHelp" class="form-text">Nhập kết quả phép tính để chống đăng ký tự động.</div>
+                    </div>
                     <button type="submit" class="btn btn-primary text-white w-100 py-3">Đăng ký</button>
                 </form>
 
@@ -77,5 +94,8 @@
         </div>
     </div>
 </main>
+
+<div th:replace="~{fragments/public-shell :: footer}"></div>
+<th:block th:replace="~{fragments/public-shell :: scripts}"></th:block>
 </body>
 </html>

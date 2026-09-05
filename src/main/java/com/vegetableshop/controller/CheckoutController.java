@@ -8,6 +8,7 @@ import com.vegetableshop.exception.OrderOperationException;
 import com.vegetableshop.service.CartService;
 import com.vegetableshop.service.OrderService;
 import com.vegetableshop.service.UserService;
+import com.vegetableshop.service.CheckoutPricingService;
 import jakarta.validation.Valid;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.core.Authentication;
@@ -27,12 +28,26 @@ public class CheckoutController {
     private final CartService cartService;
     private final UserService userService;
     private final OrderService orderService;
+    private final CheckoutPricingService checkoutPricingService;
 
-    public CheckoutController(CartService cartService, UserService userService, OrderService orderService) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public CheckoutController(CartService cartService, UserService userService, OrderService orderService,
+                              CheckoutPricingService checkoutPricingService) {
         this.cartService = cartService;
         this.userService = userService;
         this.orderService = orderService;
+        this.checkoutPricingService = checkoutPricingService;
     }
+
+    public CheckoutController(CartService cartService, UserService userService, OrderService orderService) {
+        this(cartService,userService,orderService,null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.vegetableshop.config.BankTransferProperties bankConfig;
+
+    @ModelAttribute("bankTransferEnabled")
+    public boolean bankTransferEnabled() { return bankConfig != null && bankConfig.isReady(); }
 
     @GetMapping("/checkout")
     public String checkout(
@@ -46,8 +61,9 @@ public class CheckoutController {
             redirectAttributes.addFlashAttribute("errorMessage", "Giỏ hàng của bạn đang trống");
             return "redirect:/cart";
         }
-        prefillCustomer(request, userService.findByEmail(authentication.getName()));
-        addCartToModel(cart, model);
+        User user=userService.findByEmail(authentication.getName());
+        prefillCustomer(request, user);
+        addCartToModel(cart, user, request.getVoucherCode(), model);
         return "checkout";
     }
 
@@ -59,14 +75,16 @@ public class CheckoutController {
         Model model
     ) {
         if (bindingResult.hasErrors()) {
-            return renderCheckout(authentication.getName(), model);
+            return renderCheckout(authentication.getName(), request.getVoucherCode(), model);
         }
         try {
             Order order = orderService.placeOrder(authentication.getName(), request);
+            if (order.getPaymentMethod() == com.vegetableshop.entity.PaymentMethod.BANK_TRANSFER)
+                return "redirect:/orders/" + order.getId() + "/payment";
             return "redirect:/orders/" + order.getId() + "?success";
         } catch (OrderOperationException exception) {
             bindingResult.reject("checkout.failed", exception.getMessage());
-            return renderCheckout(authentication.getName(), model);
+            return renderCheckout(authentication.getName(), request.getVoucherCode(), model);
         }
     }
 
@@ -82,15 +100,25 @@ public class CheckoutController {
         return "order-detail";
     }
 
-    private String renderCheckout(String email, Model model) {
+    private String renderCheckout(String email, String voucherCode, Model model) {
         Cart cart = cartService.getOrCreateCart(email);
-        addCartToModel(cart, model);
+        addCartToModel(cart, userService.findByEmail(email), voucherCode, model);
         return "checkout";
     }
 
-    private void addCartToModel(Cart cart, Model model) {
+    private void addCartToModel(Cart cart, User user, String voucherCode, Model model) {
         model.addAttribute("cartItems", cart.getItems());
-        model.addAttribute("cartTotal", cartService.calculateTotal(cart));
+        if(checkoutPricingService==null){model.addAttribute("cartTotal",cartService.calculateTotal(cart));return;}
+        java.util.Map<com.vegetableshop.entity.Product,Integer> quantities=new java.util.LinkedHashMap<>();
+        cart.getItems().forEach(i->quantities.put(i.getProduct(),i.getQuantity()));
+        try {
+            var pricing=checkoutPricingService.quote(quantities,user,voucherCode,false);
+            model.addAttribute("pricing",pricing);model.addAttribute("cartTotal",pricing.totalAmount());
+        } catch (OrderOperationException exception) {
+            model.addAttribute("voucherError",exception.getMessage());
+            var pricing=checkoutPricingService.quote(quantities,user,null,false);
+            model.addAttribute("pricing",pricing);model.addAttribute("cartTotal",pricing.totalAmount());
+        }
     }
 
     private void prefillCustomer(CheckoutRequest request, User user) {

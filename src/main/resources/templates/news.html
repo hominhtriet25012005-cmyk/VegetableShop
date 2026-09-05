@@ -36,15 +36,29 @@
             <div class="collapse navbar-collapse bg-white" id="navbarCollapse">
                 <div th:replace="~{fragments/navigation :: mainMenu('news')}"></div>
                 <div class="d-flex m-3 me-0">
-                    <a th:href="@{/shop}" class="btn border border-secondary btn-md-square rounded-circle bg-white me-4" aria-label="Tìm kiếm sản phẩm">
+                    <button class="btn-search btn border border-secondary btn-md-square rounded-circle bg-white me-4"
+                            type="button" data-bs-toggle="modal" data-bs-target="#searchModal"
+                            aria-label="Tìm kiếm sản phẩm">
                         <i class="fas fa-search text-primary"></i>
-                    </a>
+                    </button>
                     <div th:replace="~{fragments/cart-link :: cartLink}"></div>
                     <div th:replace="~{fragments/account :: accountMenu}"></div>
                 </div>
             </div>
         </nav>
     </div>
+</div>
+
+<div class="modal fade" id="searchModal" tabindex="-1" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen"><div class="modal-content rounded-0">
+        <div class="modal-header"><h5 class="modal-title" id="searchModalLabel">Tìm kiếm sản phẩm</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
+        <div class="modal-body d-flex align-items-center">
+            <form class="input-group w-75 mx-auto d-flex" th:action="@{/shop}" action="/shop" method="get" data-header-search-form>
+                <input name="keyword" type="search" class="form-control p-3" placeholder="Nhập tên sản phẩm..." aria-label="Tên sản phẩm cần tìm" autocomplete="off">
+                <button class="input-group-text p-3" type="submit" aria-label="Tìm kiếm"><i class="fa fa-search"></i></button>
+            </form>
+        </div>
+    </div></div>
 </div>
 
 <header class="container-fluid page-header py-5">

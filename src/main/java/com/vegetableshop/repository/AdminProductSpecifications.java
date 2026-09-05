@@ -19,6 +19,7 @@ public final class AdminProductSpecifications {
     public static Specification<Product> withFilters(
         String keyword,
         Long categoryId,
+        Long brandId,
         Boolean status
     ) {
         return (root, query, criteriaBuilder) -> {
@@ -26,10 +27,16 @@ public final class AdminProductSpecifications {
 
             if (keyword != null && !keyword.isBlank()) {
                 String pattern = "%" + keyword.toLowerCase() + "%";
-                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), pattern));
+                predicates.add(criteriaBuilder.or(
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), pattern),
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("sku")), pattern)
+                ));
             }
             if (categoryId != null) {
                 predicates.add(criteriaBuilder.equal(root.get("category").get("id"), categoryId));
+            }
+            if (brandId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("brand").get("id"), brandId));
             }
             if (status != null) {
                 predicates.add(criteriaBuilder.equal(root.get("status"), status));

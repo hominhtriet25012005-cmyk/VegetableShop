@@ -6,8 +6,11 @@ import com.vegetableshop.entity.Category;
 import com.vegetableshop.entity.Product;
 import com.vegetableshop.service.CategoryService;
 import com.vegetableshop.service.ProductService;
+import com.vegetableshop.service.ProductViewHistoryService;
+import com.vegetableshop.service.RecommendationService;
 import com.vegetableshop.service.RecentlyViewedService;
 import com.vegetableshop.service.ReviewService;
+import com.vegetableshop.service.WishlistService;
 import org.springframework.mock.web.MockHttpSession;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,6 +43,15 @@ class ProductControllerTests {
     @Mock
     private RecentlyViewedService recentlyViewedService;
 
+    @Mock
+    private ProductViewHistoryService productViewHistoryService;
+
+    @Mock
+    private RecommendationService recommendationService;
+
+    @Mock
+    private WishlistService wishlistService;
+
     @Test
     void shopAddsFilteredPageAndSupportingDataToModel() {
         Product product = new Product();
@@ -53,7 +65,7 @@ class ProductControllerTests {
         ProductController controller = controller();
         Model model = new ConcurrentModel();
 
-        String view = controller.shop(filter, model);
+        String view = controller.shop(filter, null, model);
 
         assertEquals("shop", view);
         assertSame(page, model.getAttribute("productPage"));
@@ -68,10 +80,13 @@ class ProductControllerTests {
         Product related = new Product();
         Category category = new Category();
         when(productService.findActiveProduct(3L)).thenReturn(product);
+        when(productService.galleryImages(product)).thenReturn(List.of("/img/product.jpg"));
         when(productService.findRelatedProducts(product)).thenReturn(List.of(related));
+        when(productService.findSameBrandProducts(product)).thenReturn(List.of());
         when(productService.findNewestProducts()).thenReturn(List.of(product));
         when(categoryService.findAllActiveCategories()).thenReturn(List.of(category));
         when(reviewService.summarize(3L)).thenReturn(ReviewSummary.empty());
+        when(wishlistService.findActiveProductIds(null)).thenReturn(java.util.Set.of(5L));
         when(recentlyViewedService.recordAndGetPrevious(org.mockito.ArgumentMatchers.any(),
             org.mockito.ArgumentMatchers.eq(3L))).thenReturn(List.of());
 
@@ -82,12 +97,23 @@ class ProductControllerTests {
 
         assertEquals("shop-detail", view);
         assertSame(product, model.getAttribute("product"));
+        assertEquals(List.of("/img/product.jpg"), model.getAttribute("productImages"));
         assertEquals(List.of(related), model.getAttribute("relatedProducts"));
+        assertEquals(List.of(), model.getAttribute("sameBrandProducts"));
         assertEquals(List.of(category), model.getAttribute("categories"));
         assertEquals(ReviewSummary.empty(), model.getAttribute("reviewSummary"));
+        assertEquals(java.util.Set.of(5L), model.getAttribute("wishlistProductIds"));
     }
 
     private ProductController controller() {
-        return new ProductController(productService, categoryService, reviewService, recentlyViewedService);
+        return new ProductController(
+            productService,
+            categoryService,
+            reviewService,
+            recentlyViewedService,
+            productViewHistoryService,
+            recommendationService,
+            wishlistService
+        );
     }
 }

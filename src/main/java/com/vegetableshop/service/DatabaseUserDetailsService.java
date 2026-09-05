@@ -6,17 +6,22 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
 
 @Service
 @Profile("mysql")
 public class DatabaseUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
+    private final String oauthOnlyPassword;
 
-    public DatabaseUserDetailsService(UserRepository userRepository) {
+    public DatabaseUserDetailsService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.oauthOnlyPassword = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
     @Override
@@ -27,9 +32,9 @@ public class DatabaseUserDetailsService implements UserDetailsService {
 
         return org.springframework.security.core.userdetails.User
             .withUsername(user.getEmail())
-            .password(user.getPassword())
+            .password(user.getPassword() == null ? oauthOnlyPassword : user.getPassword())
             .roles(user.getRole().name())
-            .disabled(!user.isStatus())
+            .disabled(!user.isStatus() || !user.isEmailVerified())
             .build();
     }
 }

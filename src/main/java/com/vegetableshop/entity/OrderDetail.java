@@ -40,6 +40,9 @@ public class OrderDetail {
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal subtotal;
 
+    @Column(name = "discount_amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public Order getOrder() { return order; }
@@ -54,4 +57,6 @@ public class OrderDetail {
     public void setQuantity(Integer quantity) { this.quantity = quantity; }
     public BigDecimal getSubtotal() { return subtotal; }
     public void setSubtotal(BigDecimal subtotal) { this.subtotal = subtotal; }
+    public BigDecimal getDiscountAmount() { return discountAmount; }
+    public void setDiscountAmount(BigDecimal value) { discountAmount = value; }
 }

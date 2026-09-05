@@ -35,10 +35,10 @@
                     <div class="panel-header">
                         <form class="row g-2 w-100" th:action="@{/admin/products}" method="get"
                               aria-label="Tìm và lọc sản phẩm">
-                            <div class="col-12 col-lg-4">
+                            <div class="col-12 col-lg-3">
                                 <label class="visually-hidden" for="productKeyword">Tên sản phẩm</label>
                                 <input id="productKeyword" class="form-control" name="keyword"
-                                       th:value="${keyword}" placeholder="Tìm theo tên sản phẩm">
+                                       th:value="${keyword}" placeholder="Tìm theo tên hoặc SKU">
                             </div>
                             <div class="col-12 col-sm-6 col-lg-3">
                                 <label class="visually-hidden" for="productCategory">Danh mục</label>
@@ -53,6 +53,13 @@
                                 </select>
                             </div>
                             <div class="col-12 col-sm-6 col-lg-2">
+                                <label class="visually-hidden" for="productBrand">Thương hiệu</label>
+                                <select id="productBrand" class="form-select" name="brandId">
+                                    <option value="">Tất cả thương hiệu</option>
+                                    <option th:each="brand : ${brands}" th:value="${brand.id}" th:text="${brand.name}" th:selected="${selectedBrandId != null and brand.id == selectedBrandId}">Thương hiệu</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6 col-lg-2">
                                 <label class="visually-hidden" for="productStatus">Trạng thái</label>
                                 <select id="productStatus" class="form-select" name="status">
                                     <option value="">Tất cả trạng thái</option>
@@ -62,7 +69,7 @@
                                             th:selected="${selectedStatus != null and !selectedStatus}">Đã ẩn</option>
                                 </select>
                             </div>
-                            <div class="col-12 col-lg-3 d-flex gap-2">
+                            <div class="col-12 col-lg-2 d-flex gap-2">
                                 <button class="btn btn-outline-primary flex-grow-1" type="submit">
                                     <i class="bi bi-funnel"></i> Lọc
                                 </button>
@@ -75,9 +82,10 @@
                         <table class="table align-middle mb-0">
                             <thead>
                             <tr>
-                                <th>ID</th>
+                                <th>SKU</th>
                                 <th>Sản phẩm</th>
                                 <th>Danh mục</th>
+                                <th>Thương hiệu</th>
                                 <th>Giá</th>
                                 <th>Tồn kho</th>
                                 <th>Trạng thái</th>
@@ -85,8 +93,8 @@
                             </tr>
                             </thead>
                             <tbody>
-                            <tr th:each="product : ${productPage.content}">
-                                <td th:text="${product.id}">1</td>
+                            <tr th:each="product : ${productPage.content}" th:id="${'product-' + product.id}">
+                                <td class="fw-semibold" th:text="${product.sku}">SKU</td>
                                 <td>
                                     <div class="table-media">
                                         <img class="product-thumb"
@@ -96,10 +104,10 @@
                                     </div>
                                 </td>
                                 <td th:text="${product.category.name}">Danh mục</td>
+                                <td th:text="${product.brand == null ? 'Không thương hiệu' : product.brand.name}">Thương hiệu</td>
                                 <td th:text="${#numbers.formatDecimal(product.price,0,'POINT',0,'COMMA')+' ₫'}">0 ₫</td>
                                 <td>
-                                    <span th:classappend="${product.quantity <= 10} ? ' text-danger fw-bold'"
-                                          th:text="${product.quantity}">0</span>
+                                    <span th:classappend="${product.quantity <= product.lowStockThreshold} ? ' text-danger fw-bold'" th:text="${product.quantity}">0</span>
                                 </td>
                                 <td>
                                     <span class="badge"
@@ -107,10 +115,16 @@
                                           th:text="${product.status ? 'Đang bán' : 'Đã ẩn'}">Trạng thái</span>
                                 </td>
                                 <td class="text-end">
+                                    <a class="btn btn-outline-primary btn-sm"
+                                       th:href="@{/admin/inventory/documents(productId=${product.id})}">Phiếu kho</a>
+                                    <a class="btn btn-primary btn-sm"
+                                       th:href="@{/admin/inventory/documents/new(type='INBOUND',productId=${product.id})}">Nhập mới</a>
                                     <a class="btn btn-light btn-sm"
-                                       th:href="@{/admin/products/{id}/edit(id=${product.id})}">Sửa</a>
+                                       th:href="@{/admin/products/{id}/edit(id=${product.id},returnKeyword=${keyword},returnCategoryId=${selectedCategoryId},returnBrandId=${selectedBrandId},returnStatus=${selectedStatus},returnPage=${productPage.number})}">Sửa</a>
                                     <form class="d-inline"
-                                          th:action="@{/admin/products/{id}/toggle(id=${product.id})}" method="post">
+                                          th:action="@{/admin/products/{id}/toggle(id=${product.id})}" method="post"
+                                          data-confirm data-confirm-title="Thay đổi trạng thái sản phẩm?"
+                                          data-confirm-message="Sản phẩm bị ẩn sẽ không còn xuất hiện ở cửa hàng.">
                                         <button class="btn btn-sm"
                                                 th:classappend="${product.status} ? ' btn-outline-danger' : ' btn-outline-success'"
                                                 type="submit"
@@ -119,7 +133,7 @@
                                 </td>
                             </tr>
                             <tr th:if="${productPage.empty}">
-                                <td colspan="7" class="text-center text-muted py-4">
+                                <td colspan="8" class="text-center text-muted py-4">
                                     Không tìm thấy sản phẩm phù hợp với bộ lọc
                                 </td>
                             </tr>
@@ -131,7 +145,7 @@
                         <ul class="pagination mb-0">
                             <li class="page-item" th:classappend="${productPage.first} ? ' disabled'">
                                 <a class="page-link"
-                                   th:href="@{/admin/products(keyword=${keyword},categoryId=${selectedCategoryId},status=${selectedStatus},page=${productPage.number-1})}">
+                                   th:href="@{/admin/products(keyword=${keyword},categoryId=${selectedCategoryId},brandId=${selectedBrandId},status=${selectedStatus},page=${productPage.number-1})}">
                                     Trước
                                 </a>
                             </li>
@@ -141,7 +155,7 @@
                             </li>
                             <li class="page-item" th:classappend="${productPage.last} ? ' disabled'">
                                 <a class="page-link"
-                                   th:href="@{/admin/products(keyword=${keyword},categoryId=${selectedCategoryId},status=${selectedStatus},page=${productPage.number+1})}">
+                                   th:href="@{/admin/products(keyword=${keyword},categoryId=${selectedCategoryId},brandId=${selectedBrandId},status=${selectedStatus},page=${productPage.number+1})}">
                                     Sau
                                 </a>
                             </li>

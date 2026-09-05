@@ -44,3 +44,7 @@ build/
 *.keystore
 credentials*.json
 service-account*.json
+
+# Customer-uploaded review photos: back up privately, never commit.
+uploads/
+.bank-transfer.local.properties

@@ -1,0 +1,6 @@
+@media print {
+    header, footer, script, .btn, #payment-poll-feedback, #copy-feedback { display: none !important; }
+    body { background: white !important; color: black !important; }
+    main.container { max-width: none !important; padding: 0 !important; }
+    #payment-receipt { break-inside: avoid; border-color: #bbb !important; }
+}

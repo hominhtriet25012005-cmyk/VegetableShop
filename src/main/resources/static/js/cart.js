@@ -75,6 +75,7 @@
         const addForm = event.target.closest("form[data-cart-add]");
         if (addForm) {
             event.preventDefault();
+            const buyNow = event.submitter?.hasAttribute("data-buy-now") === true;
             // FormData ignores disabled controls. Capture productId and quantity
             // before setBusy() disables the form while the request is running.
             const body = new URLSearchParams(new FormData(addForm));
@@ -88,6 +89,9 @@
                 updateSummary(data);
                 flyToCart(addForm);
                 showMessage("success", data.message);
+                if (buyNow) {
+                    window.setTimeout(() => window.location.assign("/checkout"), 350);
+                }
             } catch (error) {
                 showMessage("error", error.message);
             } finally {

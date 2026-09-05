@@ -31,6 +31,11 @@ public class Order extends BaseEntity {
     @Column(name = "order_code", nullable = false, unique = true, length = 30)
     private String orderCode;
 
+    @Column(name = "checkout_token", unique = true, length = 36)
+    private String checkoutToken;
+    public String getCheckoutToken() { return checkoutToken; }
+    public void setCheckoutToken(String checkoutToken) { this.checkoutToken = checkoutToken; }
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -49,6 +54,22 @@ public class Order extends BaseEntity {
 
     @Column(name = "total_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal totalAmount = BigDecimal.ZERO;
+
+    @Column(name = "subtotal_amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal subtotalAmount = BigDecimal.ZERO;
+
+    @Column(name = "promotion_discount_amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal promotionDiscountAmount = BigDecimal.ZERO;
+
+    @Column(name = "voucher_discount_amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal voucherDiscountAmount = BigDecimal.ZERO;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "voucher_id")
+    private Voucher voucher;
+
+    @Column(name = "voucher_code", length = 30)
+    private String voucherCode;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_method", nullable = false, length = 20)
@@ -93,6 +114,16 @@ public class Order extends BaseEntity {
     public void setNote(String note) { this.note = note; }
     public BigDecimal getTotalAmount() { return totalAmount; }
     public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+    public BigDecimal getSubtotalAmount() { return subtotalAmount; }
+    public void setSubtotalAmount(BigDecimal value) { subtotalAmount = value; }
+    public BigDecimal getPromotionDiscountAmount() { return promotionDiscountAmount; }
+    public void setPromotionDiscountAmount(BigDecimal value) { promotionDiscountAmount = value; }
+    public BigDecimal getVoucherDiscountAmount() { return voucherDiscountAmount; }
+    public void setVoucherDiscountAmount(BigDecimal value) { voucherDiscountAmount = value; }
+    public Voucher getVoucher() { return voucher; }
+    public void setVoucher(Voucher value) { voucher = value; }
+    public String getVoucherCode() { return voucherCode; }
+    public void setVoucherCode(String value) { voucherCode = value; }
     public PaymentMethod getPaymentMethod() { return paymentMethod; }
     public void setPaymentMethod(PaymentMethod paymentMethod) { this.paymentMethod = paymentMethod; }
     public PaymentStatus getPaymentStatus() { return paymentStatus; }

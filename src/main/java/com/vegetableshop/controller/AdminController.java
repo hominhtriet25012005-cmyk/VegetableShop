@@ -3,12 +3,17 @@ package com.vegetableshop.controller;
 import com.vegetableshop.dto.AdminCategoryRequest;
 import com.vegetableshop.dto.AdminProductRequest;
 import com.vegetableshop.entity.OrderStatus;
+import com.vegetableshop.entity.ProductUnit;
 import com.vegetableshop.exception.AdminOperationException;
 import com.vegetableshop.exception.ProductNotFoundException;
 import com.vegetableshop.service.AdminService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import org.springframework.context.annotation.Profile;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -19,6 +24,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import java.time.LocalDate;
 
 @Controller
 @Profile("mysql")
@@ -36,18 +44,49 @@ public class AdminController {
         return "admin/dashboard";
     }
 
+    @GetMapping("/admin/reports")
+    public String reports(
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+        Model model
+    ) {
+        try {
+            model.addAttribute("report", adminService.businessReport(from, to));
+        } catch (AdminOperationException exception) {
+            model.addAttribute("errorMessage", exception.getMessage());
+            model.addAttribute("report", adminService.businessReport(null, null));
+        }
+        return "admin/reports";
+    }
+
+    @GetMapping("/admin/reports/export.csv")
+    public ResponseEntity<byte[]> exportReports(
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        var report = adminService.businessReport(from, to);
+        String filename = "bao-cao-kinh-doanh-" + report.fromDate() + "-den-" + report.toDate() + ".csv";
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+            .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
+            .body(adminService.exportBusinessReportCsv(report));
+    }
+
     @GetMapping("/admin/products")
     public String products(
         @RequestParam(defaultValue = "") String keyword,
         @RequestParam(required = false) Long categoryId,
+        @RequestParam(required = false) Long brandId,
         @RequestParam(required = false) Boolean status,
         @RequestParam(defaultValue = "0") int page,
         Model model
     ) {
-        model.addAttribute("productPage", adminService.findProducts(keyword, categoryId, status, page));
+        model.addAttribute("productPage", adminService.findProducts(keyword, categoryId, brandId, status, page));
         model.addAttribute("categories", adminService.findCategories());
+        model.addAttribute("brands", adminService.findBrands());
         model.addAttribute("keyword", keyword);
         model.addAttribute("selectedCategoryId", categoryId);
+        model.addAttribute("selectedBrandId", brandId);
         model.addAttribute("selectedStatus", status);
         return "admin/products";
     }
@@ -64,6 +103,7 @@ public class AdminController {
         @Valid @ModelAttribute("productRequest") AdminProductRequest request,
         BindingResult bindingResult,
         Model model,
+        Authentication authentication,
         RedirectAttributes redirectAttributes
     ) {
         if (bindingResult.hasErrors()) {
@@ -71,7 +111,7 @@ public class AdminController {
             return "admin/product-form";
         }
         try {
-            adminService.createProduct(request);
+            adminService.createProduct(request, authentication.getName());
             redirectAttributes.addFlashAttribute("successMessage", "Đã thêm sản phẩm");
             return "redirect:/admin/products";
         } catch (AdminOperationException | EntityNotFoundException | ProductNotFoundException exception) {
@@ -82,10 +122,23 @@ public class AdminController {
     }
 
     @GetMapping("/admin/products/{id}/edit")
-    public String editProduct(@PathVariable Long id, Model model) {
+    public String editProduct(
+        @PathVariable Long id,
+        @RequestParam(defaultValue = "") String returnKeyword,
+        @RequestParam(required = false) Long returnCategoryId,
+        @RequestParam(required = false) Long returnBrandId,
+        @RequestParam(required = false) Boolean returnStatus,
+        @RequestParam(defaultValue = "0") int returnPage,
+        Model model
+    ) {
         model.addAttribute("productRequest", adminService.getProductForm(id));
         addProductFormModel(model, id);
+        addProductReturnState(model, returnKeyword, returnCategoryId, returnBrandId, returnStatus, returnPage);
         return "admin/product-form";
+    }
+
+    public String editProduct(Long id, Model model) {
+        return editProduct(id, "", null, null, null, 0, model);
     }
 
     @PostMapping("/admin/products/{id}")
@@ -94,21 +147,41 @@ public class AdminController {
         @Valid @ModelAttribute("productRequest") AdminProductRequest request,
         BindingResult bindingResult,
         Model model,
-        RedirectAttributes redirectAttributes
+        Authentication authentication,
+        RedirectAttributes redirectAttributes,
+        @RequestParam(defaultValue = "") String returnKeyword,
+        @RequestParam(required = false) Long returnCategoryId,
+        @RequestParam(required = false) Long returnBrandId,
+        @RequestParam(required = false) Boolean returnStatus,
+        @RequestParam(defaultValue = "0") int returnPage
     ) {
         if (bindingResult.hasErrors()) {
             addProductFormModel(model, id);
+            addProductReturnState(model, returnKeyword, returnCategoryId, returnBrandId, returnStatus, returnPage);
             return "admin/product-form";
         }
         try {
-            adminService.updateProduct(id, request);
+            adminService.updateProduct(id, request, authentication.getName());
             redirectAttributes.addFlashAttribute("successMessage", "Đã cập nhật sản phẩm");
-            return "redirect:/admin/products";
+            return redirectToProducts(returnKeyword, returnCategoryId, returnBrandId, returnStatus, returnPage, id);
         } catch (AdminOperationException | EntityNotFoundException | ProductNotFoundException exception) {
             bindingResult.reject("product.failed", exception.getMessage());
             addProductFormModel(model, id);
+            addProductReturnState(model, returnKeyword, returnCategoryId, returnBrandId, returnStatus, returnPage);
             return "admin/product-form";
         }
+    }
+
+    public String updateProduct(
+        Long id,
+        AdminProductRequest request,
+        BindingResult bindingResult,
+        Model model,
+        Authentication authentication,
+        RedirectAttributes redirectAttributes
+    ) {
+        return updateProduct(id, request, bindingResult, model, authentication, redirectAttributes,
+            "", null, null, null, 0);
     }
 
     @PostMapping("/admin/products/{id}/toggle")
@@ -222,12 +295,13 @@ public class AdminController {
 
     @PostMapping("/admin/orders/{id}/status")
     public String updateOrderStatus(
+        Authentication authentication,
         @PathVariable Long id,
         @RequestParam OrderStatus status,
         RedirectAttributes attributes
     ) {
         try {
-            adminService.updateOrderStatus(id, status);
+            adminService.updateOrderStatus(id, status, authentication.getName());
             attributes.addFlashAttribute("successMessage", "Đã cập nhật trạng thái đơn hàng");
         } catch (RuntimeException exception) {
             attributes.addFlashAttribute("errorMessage", exception.getMessage());
@@ -263,8 +337,42 @@ public class AdminController {
 
     private void addProductFormModel(Model model, Long id) {
         model.addAttribute("categories", adminService.findCategories());
-        model.addAttribute("suppliers", adminService.findSuppliers());
+        model.addAttribute("brands", adminService.findBrands());
+        model.addAttribute("productUnits", ProductUnit.values());
         model.addAttribute("productId", id);
+    }
+
+    private void addProductReturnState(
+        Model model,
+        String keyword,
+        Long categoryId,
+        Long brandId,
+        Boolean status,
+        int page
+    ) {
+        model.addAttribute("returnKeyword", keyword == null ? "" : keyword);
+        model.addAttribute("returnCategoryId", categoryId);
+        model.addAttribute("returnBrandId", brandId);
+        model.addAttribute("returnStatus", status);
+        model.addAttribute("returnPage", Math.max(page, 0));
+    }
+
+    private String redirectToProducts(
+        String keyword,
+        Long categoryId,
+        Long brandId,
+        Boolean status,
+        int page,
+        Long productId
+    ) {
+        UriComponentsBuilder builder = UriComponentsBuilder.fromPath("/admin/products");
+        if (keyword != null && !keyword.isBlank()) builder.queryParam("keyword", keyword);
+        if (categoryId != null) builder.queryParam("categoryId", categoryId);
+        if (brandId != null) builder.queryParam("brandId", brandId);
+        if (status != null) builder.queryParam("status", status);
+        if (page > 0) builder.queryParam("page", page);
+        if (productId != null) builder.fragment("product-" + productId);
+        return "redirect:" + builder.build().encode().toUriString();
     }
 
     private void addCategoryFormModel(Model model, Long id) {

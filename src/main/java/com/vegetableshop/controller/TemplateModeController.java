@@ -2,6 +2,8 @@ package com.vegetableshop.controller;
 
 import com.vegetableshop.dto.ProductFilter;
 import com.vegetableshop.dto.RegisterRequest;
+import com.vegetableshop.dto.ForgotPasswordRequest;
+import com.vegetableshop.dto.ResetPasswordRequest;
 import com.vegetableshop.dto.CheckoutRequest;
 import com.vegetableshop.dto.AdminCategoryRequest;
 import com.vegetableshop.dto.AdminDashboardView;
@@ -43,18 +45,69 @@ public class TemplateModeController {
     }
 
     @GetMapping("/login")
-    public String login() {
+    public String login(Model model) {
+        model.addAttribute("googleLoginEnabled", false);
+        model.addAttribute("mailEnabled", false);
         return "login";
     }
 
     @GetMapping("/register")
-    public String registerForm(@ModelAttribute("registerRequest") RegisterRequest registerRequest) {
+    public String registerForm(
+        @ModelAttribute("registerRequest") RegisterRequest registerRequest,
+        Model model
+    ) {
+        model.addAttribute("captchaQuestion", "3 + 4 = ?");
         return "register";
     }
 
     @PostMapping("/register")
     public String registerWithoutDatabase() {
         return "redirect:/register?databaseRequired";
+    }
+
+    @GetMapping("/forgot-password")
+    public String forgotPasswordForm(
+        @ModelAttribute("forgotPasswordRequest") ForgotPasswordRequest forgotPasswordRequest,
+        Model model
+    ) {
+        model.addAttribute("mailEnabled", false);
+        model.addAttribute("captchaQuestion", "5 + 2 = ?");
+        return "forgot-password";
+    }
+
+    @PostMapping("/forgot-password")
+    public String forgotPasswordWithoutDatabase() {
+        return "redirect:/forgot-password?databaseRequired";
+    }
+
+    @GetMapping("/reset-password")
+    public String resetPasswordForm(
+        @ModelAttribute("resetPasswordRequest") ResetPasswordRequest resetPasswordRequest,
+        Model model
+    ) {
+        model.addAttribute("invalidToken", true);
+        return "reset-password";
+    }
+
+    @GetMapping("/activate-account")
+    public String activationResult(Model model) {
+        model.addAttribute("activationSuccess", false);
+        model.addAttribute("activationError", "Chức năng này cần chạy với profile mysql,mail");
+        return "activation-result";
+    }
+
+    @GetMapping("/resend-activation")
+    public String resendActivationForm(
+        @ModelAttribute("activationRequest") ForgotPasswordRequest activationRequest,
+        Model model
+    ) {
+        model.addAttribute("mailEnabled", false);
+        return "resend-activation";
+    }
+
+    @PostMapping("/resend-activation")
+    public String resendActivationWithoutDatabase() {
+        return "redirect:/resend-activation?databaseRequired";
     }
 
     @GetMapping("/cart")
